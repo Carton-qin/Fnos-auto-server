@@ -46,7 +46,7 @@ async def init_db():
 
         await conn.run_sync(_migrate_schema)
 
-    # 预置默认系统配置
+    # 预置默认系统配置与单个安全示例测试任务
     async with AsyncSessionLocal() as session:
         for key, val in DEFAULT_CONFIG.items():
             existing = await session.get(SystemConfig, key)
@@ -54,3 +54,27 @@ async def init_db():
                 cfg_item = SystemConfig(key=key, value=val)
                 session.add(cfg_item)
         await session.commit()
+
+        from sqlalchemy import select, func
+        import uuid
+        task_count = (await session.execute(select(func.count()).select_from(Task))).scalar() or 0
+        if task_count == 0:
+            sample_task = Task(
+                id=str(uuid.uuid4()),
+                name="示例：服务健康探测与网络连通性测试",
+                type="custom_http",
+                enabled=False,
+                schedule_type="cron",
+                cron_expr="0 9 * * *",
+                jitter_mins=0,
+                retry_count=1,
+                notify_on_success=True,
+                notify_on_failure=True,
+                params={
+                    "url": "https://httpbin.org/get",
+                    "method": "GET"
+                },
+                stats={}
+            )
+            session.add(sample_task)
+            await session.commit()

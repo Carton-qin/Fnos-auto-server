@@ -100,8 +100,7 @@ input:checked + .slider:before { transform: translateX(20px); }
 @keyframes dropDown { from { transform: translate(-50%, -25px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
 @keyframes spin { 100% { transform: rotate(360deg); } }
 .spinner-icon { display: inline-block; width: 13px; height: 13px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: middle; margin-right: 5px; }
-.live-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10b981; box-shadow: 0 0 8px #10b981; margin-right: 4px; animation: pulseDot 1.5s infinite; }
-@keyframes pulseDot { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.85); } }
+.task-running-glow { border-color: rgba(56, 189, 248, 0.6) !important; box-shadow: 0 0 16px rgba(56, 189, 248, 0.15); }
 @media (max-width: 640px) { .form-row { grid-template-columns: 1fr; } header { padding: 12px 16px; } main { padding: 16px; } .tabs-bar { margin: 12px 16px 0; } .grid-cards { grid-template-columns: 1fr; } }
 </style>
 
@@ -320,12 +319,12 @@ input:checked + .slider:before { transform: translateX(20px); }
           <div class="form-group" style="margin-bottom:0;">
             <label class="form-label">推送过滤策略</label>
             <select class="form-control" id="pushPolicyMode">
-              <option value="all">📢 全部推送 (无论成功或失败均推送通知)</option>
-              <option value="fail_only" selected>🛡️ 仅异常告警 (仅打卡失败/熔断/凭据即将过期才推，强烈推荐)</option>
+              <option value="all" selected>📢 全部推送 (无论是打卡还是资讯订阅均推送，推荐)</option>
+              <option value="fail_only">🛡️ 仅打卡异常告警 (仅打卡失败/熔断才推，学术资讯仍正常推送)</option>
               <option value="silent">🔕 彻底静默 (仅发送健康周报，日常打卡完全静默)</option>
             </select>
             <div style="font-size:0.78rem; color:var(--text-muted); margin-top:6px;">
-              💡 推荐「仅异常告警」，打卡成功不打扰，有异常才发告警。
+              💡 推荐「全部推送」，确保学术专刊与资讯速报第一时间推送到手机。
             </div>
           </div>
           <div class="form-group" style="margin-bottom:0;">
@@ -539,13 +538,13 @@ input:checked + .slider:before { transform: translateX(20px); }
         <span style="font-size:0.75rem; color:var(--text-muted);">输入网址或一句话需求，全表单自动填充</span>
       </div>
       <div style="display:flex; gap:8px;">
-        <input type="text" id="aiQuickPrompt" class="form-control" style="font-size:0.85rem;" placeholder="例如: 每天早8点监控 ScienceDirect 锂/钠/碳中和专刊 / 每天早9点签到恩山论坛" onkeydown="if(event.key==='Enter'){event.preventDefault(); quickAiAutoFill(document.getElementById('btnQuickAiFill'));}">
+        <input type="text" id="aiQuickPrompt" class="form-control" style="font-size:0.85rem;" placeholder="例如: 每天早8点监控学术专刊与科技资讯 / 每天早9点签到论坛 / 每天10点监控招标公告" onkeydown="if(event.key==='Enter'){event.preventDefault(); quickAiAutoFill(document.getElementById('btnQuickAiFill'));}">
         <button type="button" class="btn btn-primary" id="btnQuickAiFill" onclick="quickAiAutoFill(this)" style="white-space:nowrap; padding:6px 14px; font-size:0.85rem;">🪄 智能填表</button>
       </div>
     </div>
     <div class="form-group">
       <label class="form-label">任务名称 *</label>
-      <input type="text" id="taskName" class="form-control" placeholder="例如: ScienceDirect 化学工程专刊监控">
+      <input type="text" id="taskName" class="form-control" placeholder="例如: 每日科技资讯与专刊精选订阅">
     </div>
     <div class="form-row">
       <div class="form-group">
@@ -553,17 +552,26 @@ input:checked + .slider:before { transform: translateX(20px); }
         <select id="taskType" class="form-control" onchange="handleTaskTypeChange()">
           <option value="checkin">网站自动签到 (HTTP 打卡)</option>
           <option value="ai_digest">学术期刊/文章 AI 订阅 (大模型提炼)</option>
-          <option value="uptime">服务存活哨兵 (状态码监控)</option>
-          <option value="custom_http">通用自定义 HTTP 请求</option>
+          <option value="uptime">服务存活哨兵 (Uptime)</option>
+          <option value="custom_http">通用 HTTP 请求</option>
         </select>
       </div>
       <div class="form-group">
-        <label class="form-label">调度方式</label>
+        <label class="form-label">调度模式</label>
         <select id="taskScheduleType" class="form-control" onchange="handleScheduleTypeChange()">
-          <option value="cron">Cron 表达式 (例如: 10 8 * * *)</option>
-          <option value="window">每日随机时间窗口 (例如: 08:00~09:30)</option>
+          <option value="cron">按 Cron 表达式精准执行 (推荐)</option>
+          <option value="window">时间窗口随机执行 (防封打卡专用)</option>
         </select>
       </div>
+    </div>
+
+    <!-- 无头浏览器渲染开关 -->
+    <div style="padding:12px 14px; background:#0f172a; border-radius:8px; margin-bottom:16px; border:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+      <div>
+        <div style="font-weight:700; font-size:0.88rem; color:#fff;">🌐 强制使用 Playwright 无头 Chromium 渲染</div>
+        <div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">适用于受 Cloudflare/WAF 人机验证拦截或 SPA 动态前端渲染的复杂网页</div>
+      </div>
+      <label class="switch"><input type="checkbox" id="taskUseHeadless"><span class="slider"></span></label>
     </div>
     <div class="form-row" id="cronRow">
       <div class="form-group">
@@ -586,14 +594,6 @@ input:checked + .slider:before { transform: translateX(20px); }
       </div>
     </div>
 
-    <!-- 飞牛 NAS 特有：无头浏览器模式开关 -->
-    <div style="padding:12px 14px; background:#0f172a; border-radius:8px; margin-bottom:16px; border:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
-      <div>
-        <div style="font-weight:700; font-size:0.88rem; color:#fff;">🌐 强制使用 Playwright 无头 Chromium 渲染</div>
-        <div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">适用于 ScienceDirect、Elsevier 等受 Cloudflare 拦截或 React SPA 动态渲染的学术网页</div>
-      </div>
-      <label class="switch"><input type="checkbox" id="taskUseHeadless"><span class="slider"></span></label>
-    </div>
 
     <!-- 认证模式选择 (Cookie vs 账号密码自动托管) -->
     <div class="form-group">
@@ -1245,11 +1245,51 @@ function loadDashboard() {
   });
 }
 
+window.runningTaskIds = window.runningTaskIds || new Set();
+let taskPollerTimer = null;
+
+function startTaskPoller() {
+  if (taskPollerTimer) return;
+  taskPollerTimer = setInterval(() => {
+    req('/api/tasks').then(res => {
+      if (!res.ok) return;
+      const tasks = res.tasks || [];
+      let anyRunning = false;
+      tasks.forEach(t => {
+        if (t.is_running) {
+          window.runningTaskIds.add(t.id);
+          anyRunning = true;
+        } else {
+          window.runningTaskIds.delete(t.id);
+        }
+      });
+      tasksList = tasks;
+      renderTasks();
+      if (!anyRunning && window.runningTaskIds.size === 0) {
+        clearInterval(taskPollerTimer);
+        taskPollerTimer = null;
+      }
+    }).catch(() => {});
+  }, 2000);
+}
+
 function loadTasks() {
   req('/api/tasks').then(res => {
     if (!res.ok) return;
     tasksList = res.tasks || [];
+    let anyRunning = false;
+    tasksList.forEach(t => {
+      if (t.is_running) {
+        window.runningTaskIds.add(t.id);
+        anyRunning = true;
+      } else {
+        window.runningTaskIds.delete(t.id);
+      }
+    });
     renderTasks();
+    if (anyRunning || window.runningTaskIds.size > 0) {
+      startTaskPoller();
+    }
     if (typeof updateLogTaskFilterOptions === 'function') {
       updateLogTaskFilterOptions(tasksList);
     }
@@ -1290,7 +1330,19 @@ function renderTasks() {
     const typeMap = { 'checkin': '自动打卡', 'ai_digest': '学术 AI 订阅', 'uptime': '服务哨兵', 'custom_http': 'HTTP 请求' };
     const cronHint = formatCronText(t.cron_expr);
     const schedDesc = t.schedule_type === 'cron' ? ('Cron: ' + t.cron_expr + cronHint) : ('窗口: ' + t.window_start + '~' + t.window_end + ' (北京时间)' + (t.today_target_time ? (' [今日目标 ' + t.today_target_time + ']') : ''));
-    const statusBadge = t.last_status === 'success' ? '<span style="color:var(--success); font-weight:600;">✅ 成功</span>' : (t.last_status === 'fail' ? '<span style="color:var(--danger); font-weight:600;">❌ 失败</span>' : '⚪ 未运行');
+    
+    const isRunning = Boolean(t.is_running || window.runningTaskIds.has(t.id));
+    const elapsedSec = t.elapsed_seconds || 1;
+    let statusBadge = '';
+    if (isRunning) {
+      statusBadge = '<span class="badge" style="background:rgba(56,189,248,0.2); color:#38bdf8; border:1px solid #38bdf8;"><span class="spinner-icon"></span> 🚀 正在执行 (' + elapsedSec + 's)</span>';
+    } else if (t.last_status === 'success') {
+      statusBadge = '<span style="color:var(--success); font-weight:600;">✅ 成功</span>';
+    } else if (t.last_status === 'fail') {
+      statusBadge = '<span style="color:var(--danger); font-weight:600;">❌ 失败</span>';
+    } else {
+      statusBadge = '⚪ 未运行';
+    }
 
     let authBadge = '';
     let sessionBadge = '';
@@ -1318,7 +1370,7 @@ function renderTasks() {
     let isTripped = t.stats && t.stats.circuit_tripped;
     let circuitBadge = isTripped ? ' <span class="badge" style="background:rgba(239,68,68,0.2); color:#ef4444; border:1px solid #ef4444;">🛡️ 熔断保护中</span>' : '';
 
-    html += '<div class="task-card">';
+    html += '<div class="task-card' + (isRunning ? ' task-running-glow' : '') + '">';
     html += '  <div class="task-main-row">';
     html += '    <div class="task-info">';
     html += '      <div class="task-name">' + t.name + ' <span class="badge">' + (typeMap[t.type] || t.type) + '</span>' + authBadge + sessionBadge + cookieBadge + pwBadge + circuitBadge + '</div>';
@@ -1348,7 +1400,11 @@ function renderTasks() {
       html += '      <button class="btn btn-secondary btn-sm" onclick="reloginTaskNow(\'' + t.id + '\', this)" title="使用配置的账号密码自动登录并刷新 StorageState 会话">🔑 重新登录</button>';
       html += '      <button class="btn btn-secondary btn-sm" onclick="showLoginScreenModal(\'' + t.id + '\', \'' + (t.name || '').replace(/'/g, "\\'") + '\')" title="查看实时登录页截图或扫码">📷 扫码/截屏</button>';
     }
-    html += '      <button class="btn btn-secondary btn-sm" id="btnRun_' + t.id + '" onclick="runTaskNow(\'' + t.id + '\', this)">⚡ 运行</button>';
+    if (isRunning) {
+      html += '      <button class="btn btn-secondary btn-sm" id="btnRun_' + t.id + '" disabled style="opacity:0.7; cursor:wait;"><span class="spinner-icon"></span> 运行中...</button>';
+    } else {
+      html += '      <button class="btn btn-secondary btn-sm" id="btnRun_' + t.id + '" onclick="runTaskNow(\'' + t.id + '\', this)">⚡ 运行</button>';
+    }
     html += '      <button class="btn btn-secondary btn-sm" onclick="editTask(\'' + t.id + '\')">✏️ 编辑</button>';
     html += '      <button class="btn btn-danger btn-sm" onclick="deleteTask(\'' + t.id + '\', this)">🗑️</button>';
     html += '    </div>';
@@ -1449,38 +1505,22 @@ function runTaskNow(id, btn) {
   const targetTask = tasksList.find(x => x.id === id);
   const taskName = targetTask ? targetTask.name : id;
 
-  const runBtn = btn || document.getElementById('btnRun_' + id);
-  if (runBtn) {
-    if (runBtn.disabled) return;
-    runBtn.disabled = true;
-    runBtn.dataset.oldText = runBtn.innerHTML;
-    runBtn.innerHTML = '<span class="spinner-icon"></span> 运行中...';
-    runBtn.style.opacity = '0.7';
-    runBtn.style.cursor = 'wait';
-  }
+  window.runningTaskIds.add(id);
+  renderTasks();
+  startTaskPoller();
 
-  const badgeEl = document.getElementById('statusBadge_' + id);
-  if (badgeEl) {
-    badgeEl.innerHTML = '<span class="badge" style="background:rgba(56,189,248,0.2); color:#38bdf8; border:1px solid #38bdf8;"><span class="spinner-icon"></span> 正在抓取分析...</span>';
-  }
-
-  showToast('🚀 任务【' + taskName + '】已触发，后台开始抓取执行...', 3500);
+  showToast('🚀 任务【' + taskName + '】已触发，后台开始执行...', 3500);
 
   req('/api/tasks/' + id + '/run', { method: 'POST' }).then(res => {
     if (res.success) {
-      showToast('✅ 任务【' + taskName + '】执行完成: ' + res.result, 5000, 'success');
+      showToast('✅ 任务【' + taskName + '】执行完成: ' + (res.result || '成功'), 5000, 'success');
     } else {
-      showToast('❌ 任务【' + taskName + '】执行异常: ' + res.result, 6000, 'error');
+      showToast('❌ 任务【' + taskName + '】执行异常: ' + (res.result || '失败'), 6000, 'error');
     }
   }).catch(err => {
     showToast('❌ 任务执行请求失败: ' + err.message, 5000, 'error');
   }).finally(() => {
-    if (runBtn) {
-      runBtn.disabled = false;
-      runBtn.innerHTML = runBtn.dataset.oldText || '⚡ 运行';
-      runBtn.style.opacity = '1';
-      runBtn.style.cursor = 'pointer';
-    }
+    window.runningTaskIds.delete(id);
     loadTasks();
     refreshStatus();
     loadDashboard();
@@ -1941,7 +1981,7 @@ function quickAiAutoFill(btn) {
   const qPromptInput = document.getElementById('aiQuickPrompt');
   const prompt = qPromptInput ? qPromptInput.value.trim() : '';
   if (!prompt) {
-    showToast('⚠️ 请输入网址或需求描述，例如：“每天早上8点监控ScienceDirect专刊”', 4000, 'error');
+    showToast('⚠️ 请输入网址或需求描述，例如：“每天早上8点抓取并智能推送”', 4000, 'error');
     return;
   }
 

@@ -29,6 +29,6 @@ RUN mkdir -p /app/data
 # 暴露飞牛专用端口 8836
 EXPOSE 8836
 
-# 启动 FastAPI 服务
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8836"]
+# 启动 FastAPI 服务 (启用热重载，代码更新秒级生效无需反复 rebuild)
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8836", "--reload"]
 

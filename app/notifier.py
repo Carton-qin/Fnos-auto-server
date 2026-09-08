@@ -54,8 +54,12 @@ class Notifier:
 
         # 策略过滤：模式校验
         mode = policy.get("mode", "all")
-        if mode == "fail_only" and level not in ["fail", "urgent"]:
-            return {"status": "filtered_by_mode", "mode": mode}
+        # 学术/资讯订阅 (digest) 属于核心数据速报，不受 fail_only (仅打卡失败告警) 限制
+        if level not in ["digest", "fail", "urgent"]:
+            if mode == "fail_only":
+                return {"status": "filtered_by_mode", "mode": mode}
+            if mode == "silent":
+                return {"status": "filtered_by_mode", "mode": mode}
         if mode == "urgent_only" and level != "urgent":
             return {"status": "filtered_by_mode", "mode": mode}
 
@@ -97,12 +101,17 @@ class Notifier:
             is_md = any(m in content for m in ["## ", "### ", "- 🏛️", "- ⏳", "**", "`"])
             payload = {
                 "token": token,
-                "title": title,
-                "content": content if is_md else content.replace("\n", "<br/>"),
+                "title": title[:100],
+                "content": (content if is_md else content.replace("\n", "<br/>"))[:30000],
                 "template": "markdown" if is_md else "html"
             }
-            resp = await client.post(url, json=payload)
-            return {"ok": resp.status_code == 200, "status": resp.status_code, "msg": resp.text[:100]}
+            resp = await client.post(url, json=payload, timeout=15.0)
+            data = resp.json() if resp.status_code == 200 else {}
+            ok = resp.status_code == 200 and data.get("code") == 200
+            msg = data.get("msg") or resp.text[:100]
+            if not ok and resp.status_code == 200:
+                logger.warning(f"[Notifier] PushPlus returned code {data.get('code')}: {msg}")
+            return {"ok": ok, "status": resp.status_code, "msg": msg}
         except Exception as e:
             return {"ok": False, "error": str(e)}
 

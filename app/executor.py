@@ -334,8 +334,29 @@ class TaskExecutor:
         self.db_session_factory = db_session_factory
         self.llm_client = llm_client
         self.notifier = notifier
+        self.running_tasks: Dict[str, float] = {}
+
+    def is_task_running(self, task_id: str) -> bool:
+        return task_id in self.running_tasks
+
+    def get_running_task_info(self, task_id: str) -> Optional[Dict[str, Any]]:
+        if task_id in self.running_tasks:
+            elapsed = round(time.time() - self.running_tasks[task_id])
+            return {"is_running": True, "elapsed_seconds": max(1, elapsed)}
+        return None
 
     async def run_task(self, task_id: str, jitter_info: str = "") -> Tuple[bool, str, str]:
+        if task_id in self.running_tasks:
+            logger.warning(f"[Executor] Task {task_id} is already running. Skipping duplicate execution.")
+            return True, "任务已在后台执行中，请稍候...", ""
+
+        self.running_tasks[task_id] = time.time()
+        try:
+            return await self._do_run_task(task_id, jitter_info)
+        finally:
+            self.running_tasks.pop(task_id, None)
+
+    async def _do_run_task(self, task_id: str, jitter_info: str = "") -> Tuple[bool, str, str]:
         async with self.db_session_factory() as session:
             task = await session.get(Task, task_id)
             if not task:
@@ -445,7 +466,8 @@ class TaskExecutor:
                         notify_content += f"防封延迟：已随机推迟 {jitter_info}\n"
                     if ai_diag:
                         notify_content += f"\n🤖 **AI 诊断建议**：\n{ai_diag}"
-                    await self.notifier.send(f"【任务失败告警】{task_name}", notify_content, level="fail")
+                    send_res = await self.notifier.send(f"【任务失败告警】{task_name}", notify_content, level="fail")
+                    logger.info(f"[Executor] Failure notification sent for {task_name}: {send_res}")
             else:
                 # 发送成功通知
                 if task.notify_on_success or ttype == "ai_digest":
@@ -460,7 +482,9 @@ class TaskExecutor:
                             notify_content += f"\n🎁 **累计斩获**：{tot_r} {r_unit}"
                     if jitter_info:
                         notify_content += f"\n🎲 **防封随机延迟**：已随机推迟 {jitter_info} 执行"
-                    await self.notifier.send(f"【任务执行结果】{task_name}", notify_content, level="success")
+                    level_to_send = "digest" if ttype == "ai_digest" else "success"
+                    send_res = await self.notifier.send(f"【任务执行结果】{task_name}", notify_content, level=level_to_send)
+                    logger.info(f"[Executor] Success notification sent for {task_name} (level={level_to_send}): {send_res}")
 
             # 凭据 Cookie / JWT 到期主动预警 (剩余 <= 3 天)
             await self._check_cookie_expiration_warning(task, session, now_str)

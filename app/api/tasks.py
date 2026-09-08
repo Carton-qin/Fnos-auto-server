@@ -86,6 +86,15 @@ async def list_tasks(db: AsyncSession = Depends(get_db), auth: bool = Depends(ge
             ac["password"] = "******"
         tc["account_config"] = ac
 
+        # 实时正在运行状态跟踪
+        if task_ctx.executor and task_ctx.executor.is_task_running(t.id):
+            run_info = task_ctx.executor.get_running_task_info(t.id) or {}
+            tc["is_running"] = True
+            tc["elapsed_seconds"] = run_info.get("elapsed_seconds", 1)
+        else:
+            tc["is_running"] = False
+            tc["elapsed_seconds"] = 0
+
         enriched_tasks.append(tc)
 
     return {"ok": True, "tasks": enriched_tasks}
@@ -213,6 +222,17 @@ async def run_task(task_id: str, db: AsyncSession = Depends(get_db), auth: bool 
 
     if not task_ctx.executor:
         raise HTTPException(status_code=500, detail="执行器未就绪")
+
+    if task_ctx.executor.is_task_running(task_id):
+        run_info = task_ctx.executor.get_running_task_info(task_id) or {}
+        return {
+            "ok": True,
+            "success": True,
+            "is_running": True,
+            "elapsed_seconds": run_info.get("elapsed_seconds", 1),
+            "result": "任务已在后台深度执行中，请稍候...",
+            "ai_diag": ""
+        }
 
     success, msg, ai_diag = await task_ctx.executor.run_task(task_id, "手动立即触发")
     return {

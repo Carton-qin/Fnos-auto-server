@@ -11,6 +11,8 @@ services:
       - "8836:8836"
     volumes:
       - ./data:/app/data
+      - ./app:/app/app
+      - ./main.py:/app/main.py
     environment:
       - TZ=Asia/Shanghai
       - PYTHONUNBUFFERED=1
