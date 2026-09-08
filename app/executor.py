@@ -787,8 +787,8 @@ class TaskExecutor:
 
         mode_badge = "🌐 无头浏览器深度渲染" if fetch_mode == "playwright" else "⚡ 极速网络抓取"
 
-        # 1. 本地高精度结构化规则解析引擎（双引擎协同：优先学术期刊专刊，其次通用网站动态/通知列表）
-        # 极速、确定性、零Token消耗、且对任何大模型风控审查天然免疫
+        # 1. 本地高精度结构化预解析引擎（双引擎协同：学术专刊列表 + 通用资讯/公告列表）
+        # 剥离网页 HTML 杂音与庞大导航树，输出最纯净的结构化资讯条目
         has_structured, structured_report = parse_academic_special_issues(raw_text, prompt, source_url)
         engine_name = "本地学术专刊结构化引擎"
 
@@ -796,68 +796,83 @@ class TaskExecutor:
             has_structured, structured_report = parse_generic_listing(raw_text, prompt, source_url)
             engine_name = "本地通用网站资讯提取引擎"
 
+        # 准备交付给大模型做专业排版与精炼的纯净内容与保底备份
         if has_structured and structured_report:
-            logger.info(f"[Executor] {engine_name} successfully parsed content for {task.name}.")
-            condensed_digest = structured_report[:3500]
-            messages = [
-                {"role": "system", "content": "你是一个严谨的信息提炼与科技速报分析师。请对下方精选内容清单进行3~4句核心动态与趋势的概括总结，语言简练客观。"},
-                {"role": "user", "content": f"{prompt}\n\n【精选内容清单】\n{condensed_digest}"}
-            ]
-            try:
-                ok_llm, ai_insight = await self.llm_client.chat_completion(messages, timeout=25)
-            except Exception as e:
-                ok_llm, ai_insight = False, str(e)
+            logger.info(f"[Executor] {engine_name} successfully extracted structured content for {task.name}.")
+            extracted_for_llm = structured_report[:25000]
+            fallback_report = structured_report
+        else:
+            cleaned_text = clean_academic_content(raw_text)
+            extracted_for_llm = cleaned_text[:25000]
+            fallback_report = cleaned_text[:3000]
 
-            # 关键保障：无论大模型是否被服务商审查拦截(content-blocked)或网络超时，本地高精度提取结果均直接作为最终速报输出！
-            # 标记为 SUCCESS，正常触发通知推送，彻底消除因模型风控或网络故障导致的任务失败！
-            if ok_llm and ai_insight and "content-blocked" not in ai_insight.lower() and not any(kw in ai_insight for kw in ["❌ 抓取失败", "拦截页面"]):
-                final_report = f"【信息提炼速报】({mode_badge} · 🎯 本地高精度检索 + 🤖 智能AI研判)\n\n### 💡 核心趋势与重点研判\n{ai_insight}\n\n---\n\n{structured_report}"
-                return True, final_report, ""
-            else:
-                logger.info(f"[Executor] LLM moderation or error encountered ({ai_insight[:60]}), seamlessly adopting native structured report (SUCCESS).")
-                final_report = f"【信息提炼速报】({mode_badge} · 🎯 {engine_name})\n\n{structured_report}"
-                return True, final_report, ""
+        # 2. 全网站通用大模型专业排版、筛选与精炼引擎
+        # 负责对提取出的纯净内容进行深度研判、聚焦用户关注点、生成高颜值卡片化 Markdown 报告
+        system_formatter_prompt = (
+            "你是一名顶尖的高级科技编辑与信息架构师，专精于为企业与科研团队定制高价值、结构清晰、排版优雅的自动化速报。\n"
+            "你的任务：根据用户的关注目标与需求指令，对从目标网站提取出的资讯内容进行深度筛选、核心提炼与专业级 Markdown 排版美化。\n\n"
+            "【排版与内容规范】（排版成果将直接推送至用户手机端微信/钉钉/企微/飞书，并同步展示于 Web 仪表盘）：\n"
+            "1. 报告顶层结构：\n"
+            "   - 标题：使用 '## 📢 {简报主题/专刊精选/最新动态速报}'（根据内容拟定醒目、准确的大标题）；\n"
+            "   - 来源与统计：紧接着使用引用块 '>' 标注信息来源、检索目标与扫描统计；\n"
+            "   - 核心研判导读：附 2~3 句核心趋势分析或今日看点速览；\n"
+            "2. 重点条目卡片化（极其重要）：\n"
+            "   - 每个重要条目使用 '### {序号}. {标题}' 独立卡片呈现，严禁多条目挤成一坨；\n"
+            "   - 使用带 Emoji 的清晰无序列表规范罗列关键属性（如 🏛️ 来源/期刊、⏳ 截止/发布时间、👨‍🔬 客座编辑/负责人、🏷️ 重点标签/契合领域）；\n"
+            "   - 若包含原始链接，务必保留可点击的 Markdown 超链接 [查看详情/直达主页](URL)；\n"
+            "   - 核心专有名词或参数使用 **粗体** 或 `代码块` 高亮标注；\n"
+            "3. 紧凑排版与过滤：\n"
+            "   - 优先展示与用户指令最契合的内容，过滤掉完全无关的杂音；\n"
+            "   - 条目与卡片之间必须保留空行，层次分明，杜绝文字堆叠，确保极佳的移动端阅读体验；\n"
+            "4. 纯净输出：\n"
+            "   - 仅输出排版完成的 Markdown 报告正文，绝不要包含任何客套开场白（如“好的，这是为您整理的...”）、自我介绍或结束语。"
+        )
 
-        # 2. 普通单篇文章/长文/博客的常规提炼流程
-        cleaned_text = clean_academic_content(raw_text)
+        user_prompt_content = (
+            f"【用户关注需求与指令】\n{prompt or '全面提炼核心要点，按重要性排序并使用卡片格式精美排版：'}\n\n"
+            f"【目标来源网址】: {source_url or '自定义数据源'}\n\n"
+            f"【从网页提取解析出的资讯条目与有效正文】\n{extracted_for_llm}"
+        )
 
         messages = [
-            {"role": "system", "content": "你是一个严谨的信息提炼与科技速报分析师。具有强大的网页要点提取、内容摘要与分析提炼能力。"},
-            {"role": "user", "content": f"{prompt}\n\n【抓取内容 (来源模式: {fetch_mode})】\n{cleaned_text}"}
+            {"role": "system", "content": system_formatter_prompt},
+            {"role": "user", "content": user_prompt_content}
         ]
 
-        ok, ai_res = await self.llm_client.chat_completion(messages, timeout=60)
+        try:
+            ok_llm, ai_res = await self.llm_client.chat_completion(messages, timeout=75)
+        except Exception as e:
+            ok_llm, ai_res = False, str(e)
 
-        # 3. 智能容灾恢复：若大模型厂商触发了 content-blocked 安全风控拦截
-        if not ok and ("content-blocked" in ai_res.lower() or "data_inspection" in ai_res.lower()):
-            logger.warning(f"[Executor] LLM safety guardrail triggered content-blocked for task {task.name}. Activating keyword-focused recovery...")
-            focused_text = filter_by_prompt_keywords(cleaned_text, prompt)
-            if focused_text and len(focused_text) < len(cleaned_text):
+        # 3. 智能风控容灾：若大模型服务商触发了 content-blocked 安全风控拦截
+        if not ok_llm and ("content-blocked" in ai_res.lower() or "data_inspection" in ai_res.lower()):
+            logger.warning(f"[Executor] LLM safety guardrail triggered content-blocked for task {task.name}. Trying keyword-focused retry...")
+            focused_text = filter_by_prompt_keywords(extracted_for_llm, prompt)
+            if focused_text and len(focused_text) < len(extracted_for_llm):
                 recovery_messages = [
-                    {"role": "system", "content": "你是一个严谨的信息提炼与科技速报分析师。请针对下方已初筛聚焦的正文内容进行提炼总结。"},
-                    {"role": "user", "content": f"{prompt}\n\n【初筛聚焦内容】\n{focused_text}"}
+                    {"role": "system", "content": system_formatter_prompt},
+                    {"role": "user", "content": f"【用户关注需求与指令】\n{prompt}\n\n【初筛聚焦内容】\n{focused_text}"}
                 ]
-                ok_retry, retry_res = await self.llm_client.chat_completion(recovery_messages, timeout=60)
+                ok_retry, retry_res = await self.llm_client.chat_completion(recovery_messages, timeout=75)
                 if ok_retry:
-                    ok = True
-                    ai_res = f"*(已自动启用正文精准净化过滤)*\n\n{retry_res}"
-                    logger.info(f"[Executor] Keyword-focused recovery succeeded for task {task.name}!")
-                else:
-                    # 终极无缝容灾兜底：哪怕重试仍被模型拦截，直接返回本地纯净正文摘要，绝不让任务失败！
-                    logger.info(f"[Executor] LLM retry still blocked, outputting focused excerpts as successful digest.")
-                    return True, f"【信息提炼速报】({mode_badge} · 🎯 本地智能正文提纯输出)\n\n> ℹ️ *大模型服务商内容审查拦截，已自动切换为本地智能精简正文输出。*\n\n{focused_text[:2000]}", ""
+                    ok_llm = True
+                    ai_res = retry_res
 
-        if ok:
-            summary_header = f"【信息提炼速报】({mode_badge})\n\n{ai_res}"
-
-            # 语义识别：若大模型指出抓取内容为拦截或失败，不将任务伪标记为成功
+        # 4. 交付最终排版速报与零故障兜底
+        if ok_llm and ai_res:
+            # 校验是否被反爬拦截
             is_ai_failure = any(kw in ai_res for kw in ["❌ 抓取失败", "Cloudflare 拦截页面", "未获取到任何", "访问被拦截", "反爬机制拦截"])
             if is_ai_failure:
-                return False, summary_header, "大模型分析确认抓取内容被目标反爬拦截"
+                return False, f"【信息提炼速报】({mode_badge})\n\n{ai_res}", "大模型分析确认抓取内容被目标反爬拦截"
 
-            return True, summary_header, ""
-        else:
-            return False, f"大模型提炼失败: {ai_res}", ai_res
+            final_report = f"【信息提炼速报】({mode_badge} · 🤖 智能AI深度排版)\n\n{ai_res.strip()}"
+            return True, final_report, ""
+
+        # 兜底保底机制：若大模型未配置、网络超时、API 配额不足或遇到其他错误，自动切换为本地高精度规则结构化报告，100% 保障推送不中断！
+        logger.warning(f"[Executor] LLM formatting unavailable for {task.name} ({ai_res[:80]}), seamlessly adopting local structured fallback report (SUCCESS).")
+        fallback_badge = f"🎯 {engine_name} · 大模型故障保底" if has_structured else "🎯 本地智能正文提纯 · 大模型故障保底"
+        final_report = f"【信息提炼速报】({mode_badge} · {fallback_badge})\n\n{fallback_report}"
+        return True, final_report, ""
 
     async def _run_uptime_task(self, task: Task) -> Tuple[bool, str, str]:
         params = task.params or {}
