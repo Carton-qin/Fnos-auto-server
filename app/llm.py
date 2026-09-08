@@ -43,12 +43,14 @@ class LLMClient:
         headers = {
             "Authorization": f"Bearer {key}",
             "Content-Type": "application/json",
-            "User-Agent": "FNOS-Automation-Hub/1.0"
+            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
         }
+        url_lower = url.lower()
         # 兼容阿里云百炼 (DashScope) / 通义千问：添加内容风控免检头，防止学术/科技长篇论文触发误报
-        if "dashscope" in url.lower() or "aliyun" in url.lower():
+        if "dashscope" in url_lower or "aliyun" in url_lower:
             headers["X-DashScope-DataInspection"] = '{"input":"disable","output":"disable"}'
-        elif "openrouter.ai" in url.lower():
+        # 兼容 AgentRouter / OpenRouter 等中转站：需要 Referer 和合规 UA 通过 WAF 指纹校验
+        if "openrouter.ai" in url_lower or "agentrouter" in url_lower:
             headers["HTTP-Referer"] = "https://github.com/Carton-qin/Fnos-auto-server"
             headers["X-Title"] = "FNOS Automation Hub"
 
@@ -210,8 +212,8 @@ class LLMClient:
         endpoint = f"{url}/models" if not url.endswith("/models") else url
         headers = {
             "Authorization": f"Bearer {api_key}",
-            "User-Agent": "RooCode/3.34.8",
-            "HTTP-Referer": "https://github.com/RooVetGit/Roo-Cline",
+            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+            "HTTP-Referer": "https://github.com/Carton-qin/Fnos-auto-server",
             "X-Title": "FNOS Automation Hub"
         }
         try:
