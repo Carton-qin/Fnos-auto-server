@@ -834,6 +834,24 @@ input:checked + .slider:before { transform: translateX(20px); }
     </div>
   </div>
 </div>
+
+<!-- 任务最新速报成果排版弹窗 -->
+<div class="modal-overlay" id="taskResultModal">
+  <div class="modal-content" style="max-width:860px; max-height:85vh; display:flex; flex-direction:column;">
+    <div class="modal-header">
+      <div class="modal-title" id="taskResultModalTitle">📄 任务最新速报排版成果</div>
+      <button class="modal-close" onclick="closeTaskResultModal()">&times;</button>
+    </div>
+    <div id="taskResultModalBody" style="flex:1; overflow-y:auto; padding:16px; background:#0f172a; border-radius:8px; border:1px solid var(--border); margin-bottom:14px; line-height:1.6;"></div>
+    <div class="modal-footer" style="display:flex; justify-content:space-between; align-items:center;">
+      <span style="font-size:0.75rem; color:var(--text-muted);">💡 结果已自动通过已启用的推送通道发送</span>
+      <div style="display:flex; gap:8px;">
+        <button class="btn btn-secondary" onclick="copyCurrentTaskResult(this)">📋 复制 Markdown 报告</button>
+        <button class="btn btn-primary" onclick="closeTaskResultModal()">关闭</button>
+      </div>
+    </div>
+  </div>
+</div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -888,6 +906,167 @@ function setBtnLoading(btn, loadingText = '处理中...') {
       btn.innerHTML = oldHtml;
     }
   };
+}
+
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function formatInlineMarkdown(text) {
+  if (!text) return '';
+  let s = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  s = s.replace(/\*\*([^*]+)\*\*/g, '<b style="color:#fff; font-weight:700;">$1</b>');
+  s = s.replace(/`([^`]+)`/g, '<code style="background:rgba(56,189,248,0.15); color:#38bdf8; padding:1px 6px; border-radius:4px; font-size:0.82rem; font-family:monospace;">$1</code>');
+  s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener" style="color:var(--accent); text-decoration:underline; word-break:break-all;">$1</a>');
+  return s;
+}
+
+function renderLogContent(text) {
+  if (!text) return '';
+  if (!text.includes('\n') && !text.includes('##') && !text.includes('- ') && !text.includes('**')) {
+    return escapeHtml(text);
+  }
+
+  const lines = text.split('\n');
+  let html = [];
+  let inUl = false;
+  let inOl = false;
+  let inTable = false;
+  let isTableHeader = true;
+
+  function closeAll() {
+    if (inUl) { html.push('</ul>'); inUl = false; }
+    if (inOl) { html.push('</ol>'); inOl = false; }
+    if (inTable) { html.push('</tbody></table></div>'); inTable = false; isTableHeader = true; }
+  }
+
+  for (let rawLine of lines) {
+    let line = rawLine.trimEnd();
+    if (!line.trim()) {
+      closeAll();
+      html.push('<div style="height:6px;"></div>');
+      continue;
+    }
+
+    // Markdown Table row: starts and ends with |
+    if (line.startsWith('|') && line.endsWith('|')) {
+      if (inUl) { html.push('</ul>'); inUl = false; }
+      if (inOl) { html.push('</ol>'); inOl = false; }
+      const rawCells = line.slice(1, -1).split('|').map(c => c.trim());
+      const isSep = rawCells.every(c => /^[-:\s]+$/.test(c));
+      if (isSep) {
+        isTableHeader = false;
+        continue;
+      }
+      if (!inTable) {
+        html.push('<div style="overflow-x:auto; margin:8px 0;"><table style="width:100%; border-collapse:collapse; font-size:0.82rem; border:1px solid var(--border); border-radius:6px; overflow:hidden;">');
+        inTable = true;
+        isTableHeader = true;
+      }
+      if (isTableHeader) {
+        html.push('<thead style="background:#1e293b;"><tr style="border-bottom:2px solid var(--border);">');
+        rawCells.forEach(cell => {
+          html.push(`<th style="padding:7px 12px; text-align:left; color:#f8fafc; font-weight:700;">${formatInlineMarkdown(cell)}</th>`);
+        });
+        html.push('</tr></thead><tbody>');
+        isTableHeader = false;
+      } else {
+        html.push('<tr style="border-bottom:1px solid rgba(51,65,85,0.5);">');
+        rawCells.forEach(cell => {
+          html.push(`<td style="padding:6px 12px; color:#cbd5e1;">${formatInlineMarkdown(cell)}</td>`);
+        });
+        html.push('</tr>');
+      }
+      continue;
+    }
+
+    if (line.startsWith('### ')) {
+      closeAll();
+      const content = formatInlineMarkdown(line.slice(4));
+      html.push(`<div style="font-size:0.95rem; font-weight:700; color:#f1f5f9; margin:14px 0 6px; padding:7px 12px; background:rgba(30,41,59,0.75); border-left:3px solid var(--accent); border-radius:4px; box-shadow:0 1px 3px rgba(0,0,0,0.2);">${content}</div>`);
+    } else if (line.startsWith('## ')) {
+      closeAll();
+      const content = formatInlineMarkdown(line.slice(3));
+      html.push(`<div style="font-size:1.05rem; font-weight:700; color:#38bdf8; margin:16px 0 8px; padding-bottom:6px; border-bottom:1px solid rgba(56,189,248,0.2); display:flex; align-items:center; gap:6px;">${content}</div>`);
+    } else if (line.startsWith('# ')) {
+      closeAll();
+      const content = formatInlineMarkdown(line.slice(2));
+      html.push(`<div style="font-size:1.15rem; font-weight:800; color:#fff; margin:16px 0 8px;">${content}</div>`);
+    } else if (line.startsWith('> ')) {
+      closeAll();
+      const content = formatInlineMarkdown(line.slice(2));
+      html.push(`<div style="padding:6px 12px; margin:4px 0; background:rgba(15,23,42,0.6); border-left:3px solid #0284c7; color:#cbd5e1; font-size:0.86rem; border-radius:0 4px 4px 0; line-height:1.5;">${content}</div>`);
+    } else if (line.startsWith('- ') || line.startsWith('* ')) {
+      if (inOl) { html.push('</ol>'); inOl = false; }
+      if (inTable) { html.push('</tbody></table></div>'); inTable = false; }
+      if (!inUl) { html.push('<ul style="margin:4px 0 6px 18px; padding:0; list-style-type:disc;">'); inUl = true; }
+      const content = formatInlineMarkdown(line.slice(2));
+      html.push(`<li style="margin:3px 0; font-size:0.86rem; color:#e2e8f0; line-height:1.5;">${content}</li>`);
+    } else if (/^\d+\.\s+/.test(line)) {
+      if (inUl) { html.push('</ul>'); inUl = false; }
+      if (inTable) { html.push('</tbody></table></div>'); inTable = false; }
+      if (!inOl) { html.push('<ol style="margin:4px 0 6px 20px; padding:0;">'); inOl = true; }
+      const m = line.match(/^(\d+\.)\s+(.*)/);
+      const content = formatInlineMarkdown(m ? m[2] : line);
+      html.push(`<li style="margin:3px 0; font-size:0.86rem; color:#e2e8f0; line-height:1.5;">${content}</li>`);
+    } else if (line.startsWith('---') || line.startsWith('***')) {
+      closeAll();
+      html.push('<hr style="border:none; border-top:1px dashed var(--border); margin:12px 0;">');
+    } else {
+      closeAll();
+      const content = formatInlineMarkdown(line);
+      html.push(`<div style="line-height:1.6; margin:3px 0; font-size:0.88rem; color:#e2e8f0;">${content}</div>`);
+    }
+  }
+  closeAll();
+  return html.join('');
+}
+
+let currentModalTaskResult = '';
+
+function openTaskResultModal(taskId) {
+  const t = tasksList.find(x => x.id === taskId);
+  if (!t || !t.last_result) return;
+  currentModalTaskResult = t.last_result;
+  document.getElementById('taskResultModalTitle').innerText = '📄 ' + (t.name || '任务') + ' - 最新速报成果';
+  document.getElementById('taskResultModalBody').innerHTML = renderLogContent(t.last_result);
+  document.getElementById('taskResultModal').classList.add('active');
+}
+
+function closeTaskResultModal() {
+  document.getElementById('taskResultModal').classList.remove('active');
+}
+
+function copyCurrentTaskResult(btn) {
+  if (!currentModalTaskResult) return;
+  navigator.clipboard.writeText(currentModalTaskResult).then(() => {
+    showToast('📋 报告 Markdown 已成功复制到剪贴板！', 2500, 'success');
+  }).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = currentModalTaskResult;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showToast('📋 报告 Markdown 已成功复制到剪贴板！', 2500, 'success');
+  });
+}
+
+function copyLogText(logId, btn) {
+  const log = (window.allLogsList || []).find(x => x.id === logId);
+  if (!log || !log.message) return;
+  navigator.clipboard.writeText(log.message).then(() => {
+    showToast('📋 报告全文已成功复制到剪贴板！', 2500, 'success');
+  }).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = log.message;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showToast('📋 报告全文已成功复制到剪贴板！', 2500, 'success');
+  });
 }
 
 function req(url, options = {}) {
@@ -1149,7 +1328,15 @@ function renderTasks() {
     html += '        <span>上次运行: ' + (t.last_run || '从未') + '</span>';
     html += '      </div>';
     if (t.last_result) {
-      html += '      <div style="font-size:0.78rem; color:var(--text-muted); margin-top:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">结果: ' + t.last_result + '</div>';
+      const isReport = t.last_result.length > 50 || t.last_result.includes('\n') || t.last_result.includes('##');
+      const firstLine = t.last_result.split('\n').map(x => x.trim()).filter(Boolean)[0] || '';
+      const preview = isReport ? (firstLine.slice(0, 70) + (firstLine.length > 70 ? '...' : '')) : t.last_result;
+      html += '      <div style="font-size:0.78rem; color:var(--text-muted); margin-top:5px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">';
+      html += '        <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:65%;">结果: ' + escapeHtml(preview) + '</span>';
+      if (isReport) {
+        html += '        <button class="btn btn-sm btn-secondary" onclick="openTaskResultModal(\'' + t.id + '\')" style="padding:2px 8px; font-size:0.75rem; color:#38bdf8; border-color:rgba(56,189,248,0.4); background:rgba(56,189,248,0.1);">📄 查看排版报告</button>';
+      }
+      html += '      </div>';
     }
     html += '    </div>';
     html += '    <div class="task-actions">';
@@ -2390,6 +2577,7 @@ function loadLogs() {
   req(queryUrl).then(res => {
     if (!res.ok) return;
     const logs = res.logs || [];
+    window.allLogsList = logs;
     const counts = res.counts || {};
 
     // 更新各分类数量
@@ -2431,9 +2619,19 @@ function loadLogs() {
       html += '    </div>';
       html += '    <span>' + (isSucc ? '<b style="color:var(--success);">SUCCESS</b>' : '<b style="color:var(--danger);">FAIL</b>') + '</span>';
       html += '  </div>';
-      html += '  <div style="word-break:break-all; line-height:1.6; color:#e2e8f0; margin-top:6px;">' + l.message + '</div>';
+      const isMd = l.message && (l.message.includes('\n') || l.message.includes('##') || l.message.includes('###') || l.message.includes('- '));
+      if (isMd) {
+        html += '  <div class="log-msg-box" style="margin-top:8px; padding:12px 14px; background:rgba(15,23,42,0.7); border-radius:6px; border:1px solid rgba(51,65,85,0.6); max-height:500px; overflow-y:auto; line-height:1.6; color:#e2e8f0;">';
+        html +=      renderLogContent(l.message);
+        html += '  </div>';
+        html += '  <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:6px;">';
+        html += '    <button class="btn btn-sm btn-secondary" onclick="copyLogText(' + l.id + ', this)" style="font-size:0.75rem; padding:2px 10px; color:#38bdf8; border-color:rgba(56,189,248,0.4); background:rgba(56,189,248,0.1);">📋 复制报告全文</button>';
+        html += '  </div>';
+      } else {
+        html += '  <div style="word-break:break-all; line-height:1.6; color:#e2e8f0; margin-top:6px; white-space:pre-wrap;">' + escapeHtml(l.message) + '</div>';
+      }
       if (l.ai_diag) {
-        html += '  <div class="log-diag">🤖 <b>AI 诊断建议:</b> ' + l.ai_diag + '</div>';
+        html += '  <div class="log-diag">🤖 <b>AI 诊断建议:</b> ' + formatInlineMarkdown(l.ai_diag) + '</div>';
       }
       html += '</div>';
     });

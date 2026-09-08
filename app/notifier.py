@@ -94,11 +94,12 @@ class Notifier:
             return {"ok": False, "error": "Token 为空"}
         try:
             url = "http://www.pushplus.plus/send"
+            is_md = any(m in content for m in ["## ", "### ", "- 🏛️", "- ⏳", "**", "`"])
             payload = {
                 "token": token,
                 "title": title,
-                "content": content.replace("\n", "<br/>"),
-                "template": "html"
+                "content": content if is_md else content.replace("\n", "<br/>"),
+                "template": "markdown" if is_md else "html"
             }
             resp = await client.post(url, json=payload)
             return {"ok": resp.status_code == 200, "status": resp.status_code, "msg": resp.text[:100]}
@@ -110,10 +111,28 @@ class Notifier:
         if not webhook:
             return {"ok": False, "error": "Webhook 为空"}
         try:
-            payload = {
-                "msg_type": "text",
-                "content": {"text": f"{title}\n\n{content}"}
-            }
+            is_md = any(m in content for m in ["## ", "### ", "- 🏛️", "- ⏳", "**", "`"])
+            if is_md:
+                payload = {
+                    "msg_type": "interactive",
+                    "card": {
+                        "header": {
+                            "title": {"tag": "plain_text", "content": title},
+                            "template": "blue"
+                        },
+                        "elements": [
+                            {
+                                "tag": "markdown",
+                                "content": content
+                            }
+                        ]
+                    }
+                }
+            else:
+                payload = {
+                    "msg_type": "text",
+                    "content": {"text": f"{title}\n\n{content}"}
+                }
             resp = await client.post(webhook, json=payload)
             return {"ok": resp.status_code == 200, "status": resp.status_code, "msg": resp.text[:100]}
         except Exception as e:
@@ -136,10 +155,20 @@ class Notifier:
             url = f"{webhook}{sep}timestamp={timestamp}&sign={sign}"
 
         try:
-            payload = {
-                "msgtype": "text",
-                "text": {"content": f"{title}\n\n{content}"}
-            }
+            is_md = any(m in content for m in ["## ", "### ", "- 🏛️", "- ⏳", "**", "`"])
+            if is_md:
+                payload = {
+                    "msgtype": "markdown",
+                    "markdown": {
+                        "title": title,
+                        "text": f"### {title}\n\n{content}"
+                    }
+                }
+            else:
+                payload = {
+                    "msgtype": "text",
+                    "text": {"content": f"{title}\n\n{content}"}
+                }
             resp = await client.post(url, json=payload)
             return {"ok": resp.status_code == 200, "status": resp.status_code, "msg": resp.text[:100]}
         except Exception as e:
@@ -150,10 +179,19 @@ class Notifier:
         if not webhook:
             return {"ok": False, "error": "Webhook 为空"}
         try:
-            payload = {
-                "msgtype": "text",
-                "text": {"content": f"{title}\n\n{content}"}
-            }
+            is_md = any(m in content for m in ["## ", "### ", "- 🏛️", "- ⏳", "**", "`"])
+            if is_md:
+                payload = {
+                    "msgtype": "markdown",
+                    "markdown": {
+                        "content": f"### {title}\n\n{content[:4000]}"
+                    }
+                }
+            else:
+                payload = {
+                    "msgtype": "text",
+                    "text": {"content": f"{title}\n\n{content}"}
+                }
             resp = await client.post(webhook, json=payload)
             return {"ok": resp.status_code == 200, "status": resp.status_code, "msg": resp.text[:100]}
         except Exception as e:
