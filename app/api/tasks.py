@@ -22,13 +22,75 @@ class TaskContext:
 
 task_ctx = TaskContext()
 
+def calibrate_task_stats(t: Task) -> dict:
+    stats = dict(t.stats or {})
+    if t.type != "checkin":
+        for k in ["streak", "history", "last_checkin_date", "total_reward", "reward_unit"]:
+            stats.pop(k, None)
+        return stats
+
+    history = dict(stats.get("history") or {})
+    if not t.last_run:
+        stats["streak"] = 0
+        stats["total_success"] = 0
+        return stats
+
+    now_bj = get_now_beijing()
+    today_str = now_bj.strftime("%Y-%m-%d")
+    yesterday_str = (now_bj - timedelta(days=1)).strftime("%Y-%m-%d")
+
+    successful_dates = set()
+    for d_str, h in history.items():
+        if isinstance(h, dict) and h.get("status") == "success":
+            successful_dates.add(d_str)
+
+    total_success = max(stats.get("total_success", 0), len(successful_dates))
+    if total_success == 0:
+        stats["streak"] = 0
+        stats["total_success"] = 0
+        return stats
+
+    streak = 0
+    if history:
+        current_dt = None
+        if today_str in successful_dates:
+            current_dt = now_bj
+        elif yesterday_str in successful_dates:
+            current_dt = now_bj - timedelta(days=1)
+
+        if current_dt:
+            check_d = current_dt
+            while True:
+                d_s = check_d.strftime("%Y-%m-%d")
+                if d_s in successful_dates:
+                    streak += 1
+                    check_d -= timedelta(days=1)
+                else:
+                    break
+    else:
+        last_checkin = stats.get("last_checkin_date", "")
+        if last_checkin in (today_str, yesterday_str):
+            streak = min(stats.get("streak", 1), total_success)
+        else:
+            streak = 0
+
+    stats["streak"] = min(streak, total_success)
+    stats["total_success"] = total_success
+    return stats
+
 @router.get("/tasks")
 async def list_tasks(db: AsyncSession = Depends(get_db), auth: bool = Depends(get_current_auth)):
     result = await db.execute(select(Task).order_by(Task.created_at.desc()))
     tasks = result.scalars().all()
 
     enriched_tasks = []
+    db_changed = False
     for t in tasks:
+        calibrated_stats = calibrate_task_stats(t)
+        if calibrated_stats != (t.stats or {}):
+            t.stats = calibrated_stats
+            db_changed = True
+
         tc = {
             "id": t.id,
             "name": t.name,
@@ -46,7 +108,7 @@ async def list_tasks(db: AsyncSession = Depends(get_db), auth: bool = Depends(ge
             "ai_diagnose": t.ai_diagnose,
             "use_headless_browser": t.use_headless_browser,
             "params": t.params or {},
-            "stats": t.stats or {},
+            "stats": calibrated_stats,
             "last_run": t.last_run,
             "last_status": t.last_status,
             "last_result": t.last_result,
@@ -96,6 +158,9 @@ async def list_tasks(db: AsyncSession = Depends(get_db), auth: bool = Depends(ge
             tc["elapsed_seconds"] = 0
 
         enriched_tasks.append(tc)
+
+    if db_changed:
+        await db.commit()
 
     return {"ok": True, "tasks": enriched_tasks}
 

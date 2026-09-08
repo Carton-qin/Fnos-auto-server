@@ -1428,32 +1428,41 @@ function renderTasks() {
     html += '    </div>';
     html += '  </div>';
 
-    // 独立打卡日历卡片
-    const stats = t.stats || {};
-    const streak = stats.streak || 0;
-    const totalSucc = stats.total_success || 0;
-    const totalRew = stats.total_reward || 0;
-    const rewUnit = stats.reward_unit || '';
-    const isCalOpen = openCalendars.has(t.id);
+    // 仅针对「自动打卡 (checkin)」任务展示打卡连续天数、达标累计与 30 天日历战绩
+    if (t.type === 'checkin') {
+      const stats = t.stats || {};
+      const totalSucc = stats.total_success || 0;
+      let streak = stats.streak || 0;
+      // 严谨校准：若从未运行过，或累计达标为0，连续天数必为0
+      if (!t.last_run || totalSucc === 0) {
+        streak = 0;
+      }
+      if (streak > totalSucc) {
+        streak = totalSucc;
+      }
+      const totalRew = stats.total_reward || 0;
+      const rewUnit = stats.reward_unit || '';
+      const isCalOpen = openCalendars.has(t.id);
 
-    html += '  <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; padding-top:10px; border-top:1px dashed var(--border);">';
-    html += '    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">';
-    html += '      <span class="badge" style="background:rgba(249,115,22,0.12); color:#f97316; border-color:rgba(249,115,22,0.3); font-size:0.75rem;">🔥 连续 <b>' + streak + '</b> 天</span>';
-    html += '      <span class="badge" style="background:rgba(16,185,129,0.12); color:var(--success); border-color:rgba(16,185,129,0.3); font-size:0.75rem;">🎯 累计 <b>' + totalSucc + '</b> 次</span>';
-    if (totalRew > 0) {
-      html += '      <span class="badge" style="background:rgba(234,179,8,0.12); color:#eab308; border-color:rgba(234,179,8,0.3); font-size:0.75rem;">🍗 斩获 <b>' + totalRew + '</b> ' + rewUnit + '</span>';
+      html += '  <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; padding-top:10px; border-top:1px dashed var(--border);">';
+      html += '    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">';
+      html += '      <span class="badge" style="background:rgba(249,115,22,0.12); color:#f97316; border-color:rgba(249,115,22,0.3); font-size:0.75rem;">🔥 连续 <b>' + streak + '</b> 天</span>';
+      html += '      <span class="badge" style="background:rgba(16,185,129,0.12); color:var(--success); border-color:rgba(16,185,129,0.3); font-size:0.75rem;">🎯 累计 <b>' + totalSucc + '</b> 次</span>';
+      if (totalRew > 0) {
+        html += '      <span class="badge" style="background:rgba(234,179,8,0.12); color:#eab308; border-color:rgba(234,179,8,0.3); font-size:0.75rem;">🍗 斩获 <b>' + totalRew + '</b> ' + rewUnit + '</span>';
+      }
+      html += '    </div>';
+      html += '    <button class="btn btn-secondary btn-sm" onclick="toggleTaskCalendar(\'' + t.id + '\')">📅 30天打卡战绩 ' + (isCalOpen ? '▲' : '▼') + '</button>';
+      html += '  </div>';
+      html += '  <div id="task-cal-' + t.id + '" style="display:' + (isCalOpen ? 'block' : 'none') + '; margin-top:4px; padding:12px; background:#0f172a; border-radius:8px; border:1px solid var(--border);"></div>';
     }
-    html += '    </div>';
-    html += '    <button class="btn btn-secondary btn-sm" onclick="toggleTaskCalendar(\'' + t.id + '\')">📅 30天打卡战绩 ' + (isCalOpen ? '▲' : '▼') + '</button>';
-    html += '  </div>';
-    html += '  <div id="task-cal-' + t.id + '" style="display:' + (isCalOpen ? 'block' : 'none') + '; margin-top:4px; padding:12px; background:#0f172a; border-radius:8px; border:1px solid var(--border);"></div>';
 
     html += '</div>';
   });
   c.innerHTML = html;
 
   tasksList.forEach(t => {
-    if (openCalendars.has(t.id)) renderTaskCalendar(t);
+    if (t.type === 'checkin' && openCalendars.has(t.id)) renderTaskCalendar(t);
   });
 }
 
@@ -1475,8 +1484,11 @@ function renderTaskCalendar(task) {
   const now = new Date();
   for (let i = 29; i >= 0; i--) {
     const d = new Date(now.getTime() - i * 86400000);
-    const dStr = d.toISOString().split('T')[0];
-    const dayNum = dStr.substring(8);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const dStr = y + '-' + m + '-' + day;
+    const dayNum = day;
     const entry = history[dStr];
     let bg = '#1e293b';
     let icon = '-';

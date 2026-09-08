@@ -175,7 +175,10 @@ class TaskScheduler:
                 streak = stats.get("streak", 0)
                 tot_s = stats.get("total_success", 0)
                 status_icon = "✅" if t.last_status == "success" else ("🛡️" if stats.get("circuit_tripped") else "❌")
-                lines.append(f"{status_icon} 【{t.name}】: 连续打卡 {streak} 天 | 达标 {tot_s} 次 | 上次执行: {t.last_run or '无'}")
+                if t.type == "checkin":
+                    lines.append(f"{status_icon} 【{t.name}】: 连续打卡 {streak} 天 | 达标 {tot_s} 次 | 上次执行: {t.last_run or '无'}")
+                else:
+                    lines.append(f"{status_icon} 【{t.name}】: 状态: {t.last_status or '未执行'} | 上次执行: {t.last_run or '无'}")
 
             lines.append("----------------------------------------")
             lines.append("💡 运行环境：飞牛私有云 (fnOS) Docker 容器化版本")

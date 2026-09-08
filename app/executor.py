@@ -523,14 +523,6 @@ class TaskExecutor:
 
         reward_obj = None
         if success:
-            if last_checkin != today_str:
-                if last_checkin == yesterday_str:
-                    stats["streak"] = stats.get("streak", 0) + 1
-                else:
-                    stats["streak"] = 1
-                stats["last_checkin_date"] = today_str
-                stats["total_success"] = stats.get("total_success", 0) + 1
-
             r_val, r_unit = extract_reward(result_msg, response_text)
             if r_val is not None:
                 old_day = history.get(today_str, {})
@@ -555,9 +547,33 @@ class TaskExecutor:
             else:
                 if today_str not in history or history[today_str].get("status") != "success":
                     history[today_str] = {"status": "success"}
+
+            # 精准校准打卡统计数据
+            successful_dates = {d for d, h in history.items() if isinstance(h, dict) and h.get("status") == "success"}
+            successful_dates.add(today_str)
+            total_success = max(stats.get("total_success", 0), len(successful_dates))
+            stats["total_success"] = total_success
+
+            # 计算连续打卡天数（从今天往回推算连续成功的天数）
+            now_bj = get_now_beijing()
+            streak = 0
+            check_d = now_bj
+            while True:
+                d_s = check_d.strftime("%Y-%m-%d")
+                if d_s in successful_dates:
+                    streak += 1
+                    check_d -= timedelta(days=1)
+                else:
+                    break
+
+            stats["streak"] = min(streak, total_success)
+            stats["last_checkin_date"] = today_str
         else:
             if today_str not in history:
                 history[today_str] = {"status": "fail"}
+            last_checkin = stats.get("last_checkin_date", "")
+            if last_checkin != yesterday_str:
+                stats["streak"] = 0
 
         # 保留最多 60 天战绩记录
         if len(history) > 60:

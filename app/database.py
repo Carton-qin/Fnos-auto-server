@@ -78,3 +78,24 @@ async def init_db():
             )
             session.add(sample_task)
             await session.commit()
+        else:
+            # 自动清洗旧版本任务残留的历史脏数据（如非打卡任务的连续天数、从未运行任务的连续天数）
+            all_db_tasks = (await session.execute(select(Task))).scalars().all()
+            changed = False
+            for t in all_db_tasks:
+                st = dict(t.stats or {})
+                if t.type != "checkin":
+                    for k in ["streak", "history", "last_checkin_date", "total_reward", "reward_unit"]:
+                        if k in st:
+                            st.pop(k, None)
+                            changed = True
+                else:
+                    if not t.last_run:
+                        if st.get("streak", 0) != 0 or st.get("total_success", 0) != 0:
+                            st["streak"] = 0
+                            st["total_success"] = 0
+                            changed = True
+                if changed:
+                    t.stats = st
+            if changed:
+                await session.commit()
