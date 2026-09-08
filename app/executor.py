@@ -426,14 +426,18 @@ class TaskExecutor:
                     logger.info(f"[Executor] AI Digest auto-logging in for {task.name}...")
                     await crawler.perform_auto_login(task.id, task.account_config or {}, self.llm_client)
 
-            logger.info(f"[Executor] AI Digest fetching: {source_url} (force_headless={task.use_headless_browser})")
+            is_academic = any(d in source_url.lower() for d in [
+                "sciencedirect.com", "elsevier.com", "springer.com", "wiley.com", "nature.com", "ieee.org"
+            ])
+            use_headless = task.use_headless_browser or (auth_mode == "playwright_account") or is_academic
+            logger.info(f"[Executor] AI Digest fetching: {source_url} (use_headless={use_headless}, is_academic={is_academic})")
             res = await crawler.fetch(
                 url=source_url,
                 method="GET",
                 headers=headers,
-                timeout=35,
+                timeout=45,
                 max_bytes=max_bytes,
-                force_headless=task.use_headless_browser or (auth_mode == "playwright_account"),
+                force_headless=use_headless,
                 session_path=session_path
             )
             raw_text = res.text
@@ -443,7 +447,25 @@ class TaskExecutor:
             raw_text = params.get("raw_content") or ""
 
         if not raw_text.strip():
-            return False, "未能获取到有效的正文内容进行提炼 (页面内容为空或被拦截)", "Empty content fetched"
+            return False, "未能获取到有效的正文内容进行提炼 (页面内容为空或目标服务不可达)", "Empty content fetched"
+
+        # 核心防误报逻辑：校验抓取到的正文是否为 Cloudflare / WAF 拦截页面
+        raw_lower = raw_text.lower()
+        is_cf_blocked = (
+            not res.ok or
+            "cloudflare error" in raw_lower or
+            "error 100" in raw_lower or
+            "error 101" in raw_lower or
+            "error 102" in raw_lower or
+            "just a moment..." in raw_lower or
+            "challenge-running" in raw_lower or
+            "cf-turnstile" in raw_lower or
+            ("ray id:" in raw_lower and len(raw_text) < 4000)
+        )
+        if is_cf_blocked:
+            error_msg = f"抓取失败：目标站点存在 Cloudflare/WAF 反爬风控拦截 (当前抓取模式: {fetch_mode})。建议确认已开启「无头浏览器深度渲染」并在任务中配置可用 Cookie 或教育网会话凭据。"
+            logger.warning(f"[Executor] Task {task.name} ({task.id}) caught Cloudflare block page: {raw_text[:200]}")
+            return False, error_msg, raw_text[:500]
 
         messages = [
             {"role": "system", "content": "你是一个严谨的信息提炼与科技速报分析师。具有强大的学术期刊专刊检索、动态页面解析与要点提炼能力。"},
@@ -454,6 +476,12 @@ class TaskExecutor:
         if ok:
             mode_badge = "🌐 无头浏览器深度渲染" if fetch_mode == "playwright" else "⚡ 极速网络抓取"
             summary_header = f"【信息提炼速报】({mode_badge})\n\n{ai_res}"
+
+            # 语义识别：若大模型指出抓取内容为拦截或失败，不将任务伪标记为成功
+            is_ai_failure = any(kw in ai_res for kw in ["❌ 抓取失败", "Cloudflare 拦截页面", "未获取到任何", "访问被拦截", "反爬机制拦截"])
+            if is_ai_failure:
+                return False, summary_header, "大模型分析确认抓取内容被目标反爬拦截"
+
             return True, summary_header, ""
         else:
             return False, f"大模型提炼失败: {ai_res}", ai_res

@@ -177,7 +177,7 @@ input:checked + .slider:before { transform: translateX(20px); }
         <div class="card-value" id="dashCrawlerMode" style="font-size:1.15rem; color:#38bdf8;">智能双模驱动</div>
         <div style="font-size:0.8rem; color:var(--text-muted);" id="dashPlaywrightState">Playwright Chromium: 探测中...</div>
         <div style="margin-top:10px; display:flex; gap:8px;">
-          <button class="btn btn-secondary btn-sm" onclick="triggerWeeklyReportNow()">📋 手动体检周报</button>
+          <button class="btn btn-secondary btn-sm" onclick="triggerWeeklyReportNow(this)">📋 手动体检周报</button>
         </div>
       </div>
     </div>
@@ -224,7 +224,7 @@ input:checked + .slider:before { transform: translateX(20px); }
           <select class="form-control" id="llmHistorySelect" onchange="applyLlmHistory(this.value)" style="flex:1;">
             <option value="">-- 选择历史厂商快速填充 URL 与 Key --</option>
           </select>
-          <button type="button" class="btn btn-secondary btn-sm" onclick="removeCurrentLlmHistory()" title="从历史记录中移除当前选中的厂商" style="white-space:nowrap;">🗑️ 移除此项</button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="removeCurrentLlmHistory(this)" title="从历史记录中移除当前选中的厂商" style="white-space:nowrap;">🗑️ 移除此项</button>
         </div>
       </div>
 
@@ -290,7 +290,7 @@ input:checked + .slider:before { transform: translateX(20px); }
       </div>
 
       <div style="text-align:right; margin-top:20px;">
-        <button type="button" class="btn btn-primary" onclick="saveLlmConfig()" style="padding:10px 32px; font-size:0.95rem; font-weight:700;">💾 保存模型配置</button>
+        <button type="button" class="btn btn-primary" id="btnSaveLlm" onclick="saveLlmConfig(this)" style="padding:10px 32px; font-size:0.95rem; font-weight:700;">💾 保存模型配置</button>
       </div>
     </div>
 
@@ -369,7 +369,7 @@ input:checked + .slider:before { transform: translateX(20px); }
           <input type="password" class="form-control" id="pushplusToken" placeholder="从 pushplus.plus 获取的 Token">
         </div>
         <div style="display:flex; justify-content:flex-end;">
-          <button class="btn btn-secondary btn-sm" onclick="testPush('pushplus')">🚀 发送测试</button>
+          <button class="btn btn-secondary btn-sm" onclick="testPush('pushplus', this)">🚀 发送测试</button>
         </div>
       </div>
 
@@ -386,7 +386,7 @@ input:checked + .slider:before { transform: translateX(20px); }
           <input type="text" class="form-control" id="feishuWebhook" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/...">
         </div>
         <div style="display:flex; justify-content:flex-end;">
-          <button class="btn btn-secondary btn-sm" onclick="testPush('feishu')">🚀 发送测试</button>
+          <button class="btn btn-secondary btn-sm" onclick="testPush('feishu', this)">🚀 发送测试</button>
         </div>
       </div>
 
@@ -407,7 +407,7 @@ input:checked + .slider:before { transform: translateX(20px); }
           <input type="text" class="form-control" id="dingtalkSecret" placeholder="以 SEC 开头的加签密钥">
         </div>
         <div style="display:flex; justify-content:flex-end;">
-          <button class="btn btn-secondary btn-sm" onclick="testPush('dingtalk')">🚀 发送测试</button>
+          <button class="btn btn-secondary btn-sm" onclick="testPush('dingtalk', this)">🚀 发送测试</button>
         </div>
       </div>
 
@@ -424,7 +424,7 @@ input:checked + .slider:before { transform: translateX(20px); }
           <input type="text" class="form-control" id="wechatWorkWebhook" placeholder="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=...">
         </div>
         <div style="display:flex; justify-content:flex-end;">
-          <button class="btn btn-secondary btn-sm" onclick="testPush('wechat_work')">🚀 发送测试</button>
+          <button class="btn btn-secondary btn-sm" onclick="testPush('wechat_work', this)">🚀 发送测试</button>
         </div>
       </div>
 
@@ -441,14 +441,14 @@ input:checked + .slider:before { transform: translateX(20px); }
           <input type="text" class="form-control" id="customUrl" placeholder="https://api.day.app/your_key/{title}/{content}">
         </div>
         <div style="display:flex; justify-content:flex-end;">
-          <button class="btn btn-secondary btn-sm" onclick="testPush('custom')">🚀 发送测试</button>
+          <button class="btn btn-secondary btn-sm" onclick="testPush('custom', this)">🚀 发送测试</button>
         </div>
       </div>
     </div>
 
     <!-- 底部保存按钮 -->
     <div style="text-align:right; margin-top:8px;">
-      <button class="btn btn-primary" onclick="savePushConfig(true)" style="padding:10px 32px; font-size:0.95rem; font-weight:700;">💾 保存所有推送配置</button>
+      <button class="btn btn-primary" id="btnSavePush" onclick="savePushConfig(true, this)" style="padding:10px 32px; font-size:0.95rem; font-weight:700;">💾 保存所有推送配置</button>
     </div>
   </div>
 
@@ -462,7 +462,7 @@ input:checked + .slider:before { transform: translateX(20px); }
         <tr style="border-bottom:1px solid var(--border);"><td style="padding:10px 0; color:var(--text-muted);">服务端口</td><td style="font-weight:600; color:var(--accent);">8836 (HTTP / RESTful)</td></tr>
         <tr style="border-bottom:1px solid var(--border);"><td style="padding:10px 0; color:var(--text-muted);">无头浏览器渲染</td><td id="sysPlaywright" style="font-weight:600;">检测中...</td></tr>
         <tr style="border-bottom:1px solid var(--border);"><td style="padding:10px 0; color:var(--text-muted);">数据持久化卷</td><td style="font-weight:600;">/app/data (映射至宿主机 ./data)</td></tr>
-        <tr style="border-bottom:1px solid var(--border);"><td style="padding:10px 0; color:var(--text-muted);">外网连通性</td><td><button class="btn btn-secondary btn-sm" onclick="testNetPing()" id="netPingBtn">测试延迟</button> <span id="netPingVal" style="margin-left:8px; font-size:0.82rem;"></span></td></tr>
+        <tr style="border-bottom:1px solid var(--border);"><td style="padding:10px 0; color:var(--text-muted);">外网连通性</td><td><button class="btn btn-secondary btn-sm" onclick="testNetPing(this)" id="netPingBtn">测试延迟</button> <span id="netPingVal" style="margin-left:8px; font-size:0.82rem;"></span></td></tr>
       </table>
     </div>
 
@@ -484,7 +484,7 @@ input:checked + .slider:before { transform: translateX(20px); }
         <label class="form-label">修改控制台密码</label>
         <div style="display:flex; gap:10px;">
           <input type="password" id="newAdminPwd" class="form-control" placeholder="输入新管理密码">
-          <button class="btn btn-primary" onclick="changeAdminPassword()">更新密码</button>
+          <button class="btn btn-primary" id="btnChangePwd" onclick="changeAdminPassword(this)">更新密码</button>
         </div>
       </div>
     </div>
@@ -502,7 +502,7 @@ input:checked + .slider:before { transform: translateX(20px); }
         <!-- 实时关键词搜索 -->
         <input type="text" id="logSearchInput" class="form-control" placeholder="🔍 搜索关键字/错误..." style="width:180px; padding:6px 12px; font-size:0.85rem;" oninput="onLogSearchInput()">
         <a href="/api/logs/download" target="_blank" class="btn btn-secondary btn-sm">⬇️ 下载完整日志</a>
-        <button class="btn btn-danger btn-sm" onclick="clearLogs()">🗑️ 清空日志</button>
+        <button class="btn btn-danger btn-sm" onclick="clearLogs(this)">🗑️ 清空日志</button>
       </div>
     </div>
 
@@ -665,7 +665,7 @@ input:checked + .slider:before { transform: translateX(20px); }
     <div id="checkinFields">
       <div class="form-group">
         <label class="form-label">请求目标 URL *</label>
-        <input type="text" id="taskUrl" class="form-control" placeholder="https://...">
+        <input type="text" id="taskUrl" class="form-control" placeholder="https://..." oninput="onTaskUrlInput(this.value)">
       </div>
       <div class="form-row">
         <div class="form-group">
@@ -694,7 +694,7 @@ input:checked + .slider:before { transform: translateX(20px); }
     <div id="aiDigestFields" style="display:none;">
       <div class="form-group">
         <label class="form-label">订阅源网址 (Source URL)</label>
-        <input type="text" id="taskSourceUrl" class="form-control" placeholder="https://www.sciencedirect.com/browse/calls-for-papers?subject=chemical-engineering">
+        <input type="text" id="taskSourceUrl" class="form-control" placeholder="https://www.sciencedirect.com/browse/calls-for-papers?subject=chemical-engineering" oninput="onTaskUrlInput(this.value)">
       </div>
       <div class="form-group">
         <label class="form-label">AI 提炼与筛选提示词 (Prompt)</label>
@@ -704,7 +704,7 @@ input:checked + .slider:before { transform: translateX(20px); }
 
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeTaskModal()">取消</button>
-      <button class="btn btn-primary" onclick="saveTask()">保存并同步</button>
+      <button class="btn btn-primary" id="btnSaveTask" onclick="saveTask(this)">保存并同步</button>
     </div>
   </div>
 </div>
@@ -724,7 +724,7 @@ input:checked + .slider:before { transform: translateX(20px); }
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeLegacyImportModal()">取消</button>
-      <button class="btn btn-success" onclick="submitLegacyImport()">确认导入并入库</button>
+      <button class="btn btn-success" id="btnImportLegacy" onclick="submitLegacyImport(this)">确认导入并入库</button>
     </div>
   </div>
 </div>
@@ -750,7 +750,7 @@ input:checked + .slider:before { transform: translateX(20px); }
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeAiGenModal()">取消</button>
-      <button class="btn btn-primary" onclick="submitAiGenTask()">开始智能解析</button>
+      <button class="btn btn-primary" id="btnAiGen" onclick="submitAiGenTask(this)">开始智能解析</button>
     </div>
   </div>
 </div>
@@ -782,12 +782,19 @@ input:checked + .slider:before { transform: translateX(20px); }
       <textarea id="debugBody" class="form-control" rows="3"></textarea>
     </div>
     <div style="display:flex; justify-content:space-between; margin-bottom:12px;">
-      <button class="btn btn-primary" onclick="sendHttpDebug()">🚀 发送请求</button>
+      <button class="btn btn-primary" id="btnHttpDebug" onclick="sendHttpDebug(this)">🚀 发送请求</button>
       <span id="debugLatency" style="font-size:0.82rem; color:var(--text-muted); align-self:center;"></span>
     </div>
     <div class="form-group">
       <label class="form-label">响应内容预览</label>
       <textarea id="debugResponse" class="form-control" rows="8" readonly placeholder="等待执行..."></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeHttpDebugger()">关闭</button>
+    </div>
+  </div>
+</div>
+
 <!-- 远程截屏与扫码弹窗 -->
 <div class="modal-overlay" id="loginScreenModal">
   <div class="modal-content" style="max-width:760px;">
@@ -807,12 +814,13 @@ input:checked + .slider:before { transform: translateX(20px); }
     <div class="modal-footer" style="display:flex; justify-content:space-between; align-items:center;">
       <span id="loginScreenTimestamp" style="font-size:0.75rem; color:var(--text-muted);"></span>
       <div style="display:flex; gap:8px;">
-        <button class="btn btn-secondary" onclick="refreshLoginScreen()">🔄 刷新截屏</button>
-        <button class="btn btn-primary" id="loginScreenReloginBtn" onclick="doReloginFromModal()">🔑 触发重新登录</button>
+        <button class="btn btn-secondary" onclick="refreshLoginScreen(this)">🔄 刷新截屏</button>
+        <button class="btn btn-primary" id="loginScreenReloginBtn" onclick="doReloginFromModal(this)">🔑 触发重新登录</button>
         <button class="btn btn-secondary" onclick="closeLoginScreenModal()">关闭</button>
       </div>
     </div>
   </div>
+</div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -821,12 +829,52 @@ input:checked + .slider:before { transform: translateX(20px); }
 let authToken = localStorage.getItem('fnos_token') || '';
 let tasksList = [];
 let openCalendars = new Set();
+let toastTimer = null;
 
-function showToast(msg, duration = 3000) {
+function showToast(msg, duration = 3500, type = 'info') {
   const t = document.getElementById('toast');
-  t.innerText = msg;
+  if (!t) return;
+  clearTimeout(toastTimer);
+  t.innerHTML = msg;
+  if (type === 'error' || (typeof msg === 'string' && msg.startsWith('❌'))) {
+    t.style.borderColor = 'var(--danger)';
+    t.style.background = '#1e1b4b';
+    t.style.boxShadow = '0 16px 36px rgba(239, 68, 68, 0.4)';
+  } else if (type === 'success' || (typeof msg === 'string' && (msg.startsWith('✅') || msg.startsWith('🎉')))) {
+    t.style.borderColor = 'var(--success)';
+    t.style.background = '#064e3b';
+    t.style.boxShadow = '0 16px 36px rgba(16, 185, 129, 0.4)';
+  } else {
+    t.style.borderColor = '#38bdf8';
+    t.style.background = '#0f172a';
+    t.style.boxShadow = '0 16px 36px rgba(56, 189, 248, 0.35)';
+  }
   t.style.display = 'block';
-  setTimeout(() => { t.style.display = 'none'; }, duration);
+  toastTimer = setTimeout(() => { t.style.display = 'none'; }, duration);
+}
+
+function setBtnLoading(btn, loadingText = '处理中...') {
+  if (!btn) return () => {};
+  const oldHtml = btn.innerHTML;
+  const oldDisabled = btn.disabled;
+  const oldCursor = btn.style.cursor;
+  btn.disabled = true;
+  btn.style.cursor = 'wait';
+  btn.innerHTML = `<span class="spinner-icon"></span> ${loadingText}`;
+  return function restore(statusHtml = null, duration = 1500) {
+    if (statusHtml) {
+      btn.innerHTML = statusHtml;
+      setTimeout(() => {
+        btn.disabled = oldDisabled;
+        btn.style.cursor = oldCursor;
+        btn.innerHTML = oldHtml;
+      }, duration);
+    } else {
+      btn.disabled = oldDisabled;
+      btn.style.cursor = oldCursor;
+      btn.innerHTML = oldHtml;
+    }
+  };
 }
 
 function req(url, options = {}) {
@@ -852,23 +900,30 @@ function showLoginGateway() {
 function submitGatewayLogin() {
   const pwd = document.getElementById('gatewayPassword').value.trim();
   if (!pwd) return;
+  const btn = document.getElementById('gatewaySubmitBtn');
+  const done = setBtnLoading(btn, '正在验证...');
   fetch('/api/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ password: pwd })
   }).then(res => res.json()).then(data => {
     if (data.ok) {
+      done('✅ 登录成功', 1000);
       authToken = data.token;
       localStorage.setItem('fnos_token', authToken);
       document.getElementById('loginGateway').style.display = 'none';
-      showToast('登录成功！');
+      showToast('🎉 欢迎登录飞牛私有云自动化中枢！', 3500, 'success');
       refreshAll();
     } else {
+      done('❌ 密码错误', 1500);
       document.getElementById('gatewayError').style.display = 'block';
       document.getElementById('gatewayError').innerText = data.detail || '密码错误';
+      showToast('❌ 登录失败: ' + (data.detail || '密码错误'), 3500, 'error');
     }
-  }).catch(() => {
+  }).catch(err => {
+    done('❌ 网络错误', 1500);
     document.getElementById('gatewayError').style.display = 'block';
+    showToast('❌ 登录请求失败: ' + err.message, 3500, 'error');
   });
 }
 
@@ -1064,15 +1119,15 @@ function renderTasks() {
     html += '    <div class="task-actions">';
     html += '      <label class="switch"><input type="checkbox" ' + (t.enabled ? 'checked' : '') + ' onchange="toggleTaskEnable(\'' + t.id + '\')"><span class="slider"></span></label>';
     if (isTripped) {
-      html += '      <button class="btn btn-sm" onclick="resetTaskCircuit(\'' + t.id + '\')" style="background:rgba(245,158,11,0.2); color:#f59e0b; border:1px solid rgba(245,158,11,0.5);">🔄 恢复调度</button>';
+      html += '      <button class="btn btn-sm" onclick="resetTaskCircuit(\'' + t.id + '\', this)" style="background:rgba(245,158,11,0.2); color:#f59e0b; border:1px solid rgba(245,158,11,0.5);">🔄 恢复调度</button>';
     }
     if (t.auth_mode === 'playwright_account') {
-      html += '      <button class="btn btn-secondary btn-sm" onclick="reloginTaskNow(\'' + t.id + '\')" title="使用配置的账号密码自动登录并刷新 StorageState 会话">🔑 重新登录</button>';
+      html += '      <button class="btn btn-secondary btn-sm" onclick="reloginTaskNow(\'' + t.id + '\', this)" title="使用配置的账号密码自动登录并刷新 StorageState 会话">🔑 重新登录</button>';
       html += '      <button class="btn btn-secondary btn-sm" onclick="showLoginScreenModal(\'' + t.id + '\', \'' + (t.name || '').replace(/'/g, "\\'") + '\')" title="查看实时登录页截图或扫码">📷 扫码/截屏</button>';
     }
     html += '      <button class="btn btn-secondary btn-sm" id="btnRun_' + t.id + '" onclick="runTaskNow(\'' + t.id + '\', this)">⚡ 运行</button>';
     html += '      <button class="btn btn-secondary btn-sm" onclick="editTask(\'' + t.id + '\')">✏️ 编辑</button>';
-    html += '      <button class="btn btn-danger btn-sm" onclick="deleteTask(\'' + t.id + '\')">🗑️</button>';
+    html += '      <button class="btn btn-danger btn-sm" onclick="deleteTask(\'' + t.id + '\', this)">🗑️</button>';
     html += '    </div>';
     html += '  </div>';
 
@@ -1155,10 +1210,15 @@ function toggleTaskEnable(id) {
   });
 }
 
-function resetTaskCircuit(id) {
+function resetTaskCircuit(id, btn) {
+  const done = setBtnLoading(btn, '恢复中...');
   req('/api/tasks/' + id + '/reset_circuit', { method: 'POST' }).then(res => {
-    showToast(res.message || '熔断已恢复');
+    done('✅ 已恢复', 1500);
+    showToast(res.message || '🎉 熔断保护已恢复，调度已重启！', 3500, 'success');
     loadTasks();
+  }).catch(err => {
+    done('❌ 失败', 1500);
+    showToast('❌ 恢复熔断失败: ' + err.message, 4000, 'error');
   });
 }
 
@@ -1185,12 +1245,12 @@ function runTaskNow(id, btn) {
 
   req('/api/tasks/' + id + '/run', { method: 'POST' }).then(res => {
     if (res.success) {
-      showToast('✅ 任务【' + taskName + '】执行完成: ' + res.result, 5000);
+      showToast('✅ 任务【' + taskName + '】执行完成: ' + res.result, 5000, 'success');
     } else {
-      showToast('❌ 任务【' + taskName + '】执行异常: ' + res.result, 6000);
+      showToast('❌ 任务【' + taskName + '】执行异常: ' + res.result, 6000, 'error');
     }
   }).catch(err => {
-    showToast('❌ 任务执行请求失败: ' + err.message, 5000);
+    showToast('❌ 任务执行请求失败: ' + err.message, 5000, 'error');
   }).finally(() => {
     if (runBtn) {
       runBtn.disabled = false;
@@ -1208,11 +1268,16 @@ function runTaskNow(id, btn) {
 }
 
 
-function deleteTask(id) {
+function deleteTask(id, btn) {
   if (!confirm('确定删除此自动化任务吗？')) return;
+  const done = setBtnLoading(btn, '删除中...');
   req('/api/tasks/' + id, { method: 'DELETE' }).then(() => {
-    showToast('任务已删除');
+    done();
+    showToast('🗑️ 任务已删除', 3000, 'success');
     loadTasks();
+  }).catch(err => {
+    done();
+    showToast('❌ 删除失败: ' + err.message, 4000, 'error');
   });
 }
 
@@ -1344,8 +1409,20 @@ function handleScheduleTypeChange() {
   document.getElementById('windowRow').style.display = (stype === 'window') ? 'grid' : 'none';
 }
 
-function saveTask() {
-  const id = document.getElementById('taskId').value;
+function onTaskUrlInput(val) {
+  if (!val) return;
+  if (/sciencedirect|elsevier|nature|wiley|springer|ieee|researchgate/i.test(val)) {
+    const chk = document.getElementById('taskUseHeadless');
+    if (chk && !chk.checked) {
+      chk.checked = true;
+      showToast('💡 检测到学术期刊/反爬动态站点，已自动开启「无头浏览器深度渲染」！', 4000);
+    }
+  }
+}
+
+function saveTask(btn) {
+  const saveBtn = btn || document.getElementById('btnSaveTask');
+  const id = document.getElementById('taskId').value.trim();
   const name = document.getElementById('taskName').value.trim();
   if (!name) return alert('请输入任务名称');
 
@@ -1385,13 +1462,16 @@ function saveTask() {
   }
 
   let reqUrl = document.getElementById('taskUrl').value.trim();
-  // 账密托管模式下，如果请求URL留空，可默认沿用登录页或目标地址
   if (!reqUrl && authMode === 'playwright_account' && accountConfig && accountConfig.login_url) {
     reqUrl = accountConfig.login_url;
   }
 
+  const sUrl = document.getElementById('taskSourceUrl') ? document.getElementById('taskSourceUrl').value.trim() : '';
+  const isAcademic = /sciencedirect|elsevier|nature|wiley|springer|ieee|researchgate/i.test(sUrl) ||
+                     /sciencedirect|elsevier|nature|wiley|springer|ieee|researchgate/i.test(reqUrl);
+
   const params = (type === 'ai_digest') ? {
-    source_url: document.getElementById('taskSourceUrl').value.trim(),
+    source_url: sUrl,
     prompt: document.getElementById('taskPrompt').value.trim(),
     headers: headers
   } : {
@@ -1411,11 +1491,14 @@ function saveTask() {
     window_start: document.getElementById('taskWindowStart').value.trim(),
     window_end: document.getElementById('taskWindowEnd').value.trim(),
     jitter_mins: parseInt(document.getElementById('taskJitter').value) || 0,
-    use_headless_browser: authMode === 'playwright_account' ? true : document.getElementById('taskUseHeadless').checked,
+    use_headless_browser: authMode === 'playwright_account' ? true : (document.getElementById('taskUseHeadless').checked || isAcademic),
     auth_mode: authMode,
     account_config: accountConfig,
     params: params
   };
+
+  const done = setBtnLoading(saveBtn, '正在保存任务...');
+  showToast('正在保存任务配置并同步至调度引擎...', 3000);
 
   req('/api/tasks', {
     method: 'POST',
@@ -1423,29 +1506,39 @@ function saveTask() {
     body: JSON.stringify(payload)
   }).then(res => {
     if (res.ok) {
-      showToast('任务保存成功！');
+      done('✅ 保存成功！', 1500);
+      showToast('🎉 任务【' + name + '】保存成功并已启用定时调度！', 4000, 'success');
       closeTaskModal();
       loadTasks();
     } else {
+      done('❌ 保存失败', 2000);
       alert('保存失败: ' + (res.detail || '未知错误'));
     }
+  }).catch(err => {
+    done('❌ 异常', 2000);
+    showToast('❌ 保存任务网络异常: ' + err.message, 4000, 'error');
   });
 }
 
 // 自动登录与实时快照交互
 let currentScreenTaskId = '';
 
-function reloginTaskNow(taskId) {
-  showToast('正在启动 Playwright 自动登录与验证码识别...');
+function reloginTaskNow(taskId, btn) {
+  const done = setBtnLoading(btn, '正在登录...');
+  showToast('⏳ 正在启动无头浏览器并执行自动化登录...', 4000);
   req('/api/tasks/' + taskId + '/relogin', { method: 'POST' }).then(res => {
     if (res.ok) {
-      showToast('✅ 自动登录成功，会话 StorageState 已就绪！', 4000);
+      done('✅ 登录成功', 1500);
+      showToast('✅ 自动登录成功，会话 StorageState 已就绪！', 4000, 'success');
       loadTasks();
     } else {
+      done('❌ 登录失败', 2000);
+      showToast('❌ 自动登录失败: ' + (res.message || '未知错误'), 4500, 'error');
       alert('❌ 自动登录失败: ' + (res.message || '未知错误'));
     }
   }).catch(err => {
-    alert('请求失败: ' + err.message);
+    done('❌ 异常', 2000);
+    showToast('❌ 请求失败: ' + err.message, 4000, 'error');
   });
 }
 
@@ -1456,8 +1549,9 @@ function showLoginScreenModal(taskId, taskName) {
   refreshLoginScreen();
 }
 
-function refreshLoginScreen() {
+function refreshLoginScreen(btn) {
   if (!currentScreenTaskId) return;
+  const done = setBtnLoading(btn, '截屏中...');
   const img = document.getElementById('loginScreenImg');
   const loading = document.getElementById('loginScreenLoading');
   const timeEl = document.getElementById('loginScreenTimestamp');
@@ -1474,6 +1568,7 @@ function refreshLoginScreen() {
     if (!res.ok) throw new Error('HTTP ' + res.status);
     return res.blob();
   }).then(blob => {
+    done('✅ 快照已更新', 1200);
     const objectUrl = URL.createObjectURL(blob);
     img.src = objectUrl;
     img.onload = () => {
@@ -1481,31 +1576,33 @@ function refreshLoginScreen() {
       img.style.display = 'block';
       timeEl.innerText = '快照生成时间: ' + new Date().toLocaleTimeString();
     };
+    showToast('📷 登录页面快照已更新', 2500, 'success');
   }).catch(err => {
+    done('❌ 截屏失败', 1500);
     loading.innerHTML = '<span style="color:var(--danger);">❌ 获取快照失败: ' + err.message + ' (请确认已配置登录页 URL 且目标服务可访问)</span>';
+    showToast('❌ 获取快照失败: ' + err.message, 4000, 'error');
   });
 }
 
-function doReloginFromModal() {
+function doReloginFromModal(btn) {
   if (!currentScreenTaskId) return;
-  const btn = document.getElementById('loginScreenReloginBtn');
-  btn.disabled = true;
-  btn.innerText = '正在登录...';
+  const targetBtn = btn || document.getElementById('loginScreenReloginBtn');
+  const done = setBtnLoading(targetBtn, '正在登录...');
+  showToast('⏳ 正在触发自动登录并识别验证码...', 3500);
   req('/api/tasks/' + currentScreenTaskId + '/relogin', { method: 'POST' }).then(res => {
-    btn.disabled = false;
-    btn.innerText = '🔑 触发重新登录';
     if (res.ok) {
-      showToast('✅ 登录成功，会话已更新！');
+      done('✅ 登录成功', 1500);
+      showToast('🎉 登录成功，会话凭证已更新！', 3500, 'success');
       refreshLoginScreen();
       loadTasks();
     } else {
-      alert('❌ 登录返回: ' + (res.message || '未知错误'));
+      done('❌ 登录失败', 2000);
+      showToast('❌ 登录返回: ' + (res.message || '未知错误'), 4000, 'error');
       refreshLoginScreen();
     }
   }).catch(err => {
-    btn.disabled = false;
-    btn.innerText = '🔑 触发重新登录';
-    alert('网络异常: ' + err.message);
+    done('❌ 异常', 2000);
+    showToast('❌ 网络异常: ' + err.message, 4000, 'error');
   });
 }
 
@@ -1526,7 +1623,8 @@ function closeLegacyImportModal() {
   document.getElementById('legacyImportModal').classList.remove('active');
 }
 
-function submitLegacyImport() {
+function submitLegacyImport(btn) {
+  const saveBtn = btn || document.getElementById('btnImportLegacy');
   const txt = document.getElementById('legacyJsonInput').value.trim();
   if (!txt) return alert('请粘贴 tasks.json 内容');
   let tasks = [];
@@ -1537,18 +1635,27 @@ function submitLegacyImport() {
     return alert('JSON 语法解析错误: ' + e.message);
   }
 
+  const done = setBtnLoading(saveBtn, '正在导入入库...');
+  showToast('正在解析并导入任务数据...', 3000);
+
   req('/api/tasks/import-legacy', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ tasks: tasks })
   }).then(res => {
     if (res.ok) {
-      showToast(res.message || '导入成功！');
+      done('✅ 导入成功', 1500);
+      showToast('🎉 ' + (res.message || '任务已成功无缝迁移入库！'), 4000, 'success');
       closeLegacyImportModal();
       loadTasks();
     } else {
+      done('❌ 导入失败', 2000);
       alert('导入失败: ' + (res.detail || '未知错误'));
+      showToast('❌ 导入失败: ' + (res.detail || '未知错误'), 4000, 'error');
     }
+  }).catch(err => {
+    done('❌ 异常', 2000);
+    showToast('❌ 导入请求失败: ' + err.message, 4000, 'error');
   });
 }
 
@@ -1564,19 +1671,23 @@ function closeAiGenModal() {
   document.getElementById('aiGenModal').classList.remove('active');
 }
 
-function submitAiGenTask() {
+function submitAiGenTask(btn) {
+  const genBtn = btn || document.getElementById('btnAiGen');
   const url = document.getElementById('aiGenUrl').value.trim();
   const prompt = document.getElementById('aiGenPrompt').value.trim();
   const curl = document.getElementById('aiGenCurl').value.trim();
   if (!url && !prompt && !curl) return alert('请至少填写网址、需求或 cURL');
 
-  showToast('AI 正在深度解析接口结构...');
+  const done = setBtnLoading(genBtn, 'AI 深度解析中...');
+  showToast('🤖 AI 正在深度解析接口结构并生成调度任务...', 5000);
+
   req('/api/tasks/ai_generate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ url: url, prompt: prompt, curl: curl })
   }).then(res => {
     if (res.ok && res.task) {
+      done('✅ 解析成功', 1500);
       closeAiGenModal();
       openAddTaskModal();
       const t = res.task;
@@ -1592,10 +1703,15 @@ function submitAiGenTask() {
       document.getElementById('taskBody').value = p.body || '';
       document.getElementById('taskKeyword').value = p.match_keyword || '';
       handleTaskTypeChange();
-      showToast('AI 任务配置已解析就绪，请核对后保存！', 4000);
+      showToast('🎉 AI 任务配置已成功解析就绪，请核对后保存！', 5000, 'success');
     } else {
+      done('❌ 解析失败', 2000);
+      showToast('❌ AI 解析失败: ' + (res.message || '未知错误'), 4000, 'error');
       alert('AI 解析失败: ' + (res.message || '未知错误'));
     }
+  }).catch(err => {
+    done('❌ 异常', 2000);
+    showToast('❌ 请求失败: ' + err.message, 4000, 'error');
   });
 }
 
@@ -1612,7 +1728,8 @@ function closeHttpDebugger() {
   document.getElementById('httpDebugModal').classList.remove('active');
 }
 
-function sendHttpDebug() {
+function sendHttpDebug(btn) {
+  const sendBtn = btn || document.getElementById('btnHttpDebug');
   const url = document.getElementById('debugUrl').value.trim();
   if (!url) return alert('请输入调试目标 URL');
 
@@ -1624,7 +1741,11 @@ function sendHttpDebug() {
     return alert('Headers 必须为 JSON');
   }
 
-  showToast('正在发送测试请求...');
+  const done = setBtnLoading(sendBtn, '发送中...');
+  showToast('正在发送测试请求...', 3000);
+  document.getElementById('debugLatency').innerText = '正在请求...';
+  document.getElementById('debugResponse').value = '正在等待服务器响应...';
+
   req('/api/http/debug', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -1635,8 +1756,14 @@ function sendHttpDebug() {
       body: document.getElementById('debugBody').value
     })
   }).then(res => {
+    done('✅ 完成', 1200);
     document.getElementById('debugLatency').innerText = '耗时: ' + res.latency_ms + 'ms | 状态: HTTP ' + res.status_code + ' | 引擎: ' + res.mode_used;
     document.getElementById('debugResponse').value = res.body || res.error || '空响应';
+    showToast('🎉 HTTP 请求测试完成 (状态: ' + res.status_code + ')', 3500, 'success');
+  }).catch(err => {
+    done('❌ 失败', 1500);
+    document.getElementById('debugLatency').innerText = '请求异常: ' + err.message;
+    showToast('❌ 请求失败: ' + err.message, 4000, 'error');
   });
 }
 
@@ -1712,7 +1839,7 @@ function applyLlmHistory(idx) {
   }
 }
 
-function removeCurrentLlmHistory() {
+function removeCurrentLlmHistory(btn) {
   const hs = document.getElementById('llmHistorySelect');
   if (!hs || !hs.value) {
     alert('请先在下拉列表中选择要移除的历史厂商');
@@ -1723,13 +1850,19 @@ function removeCurrentLlmHistory() {
   const name = item ? item.name : '此厂商';
   if (!confirm('确定将【' + name + '】从历史厂商列表中移除吗？')) return;
 
+  const done = setBtnLoading(btn, '移除中...');
   req('/api/llm/history/' + idx, { method: 'DELETE' }).then(res => {
     if (res.ok) {
-      showToast('已移除 ' + name + ' 历史凭证');
+      done('✅ 已移除', 1500);
+      showToast('🗑️ 已移除【' + name + '】历史凭证', 3000, 'success');
       loadLlmConfig();
     } else {
-      alert('移除失败: ' + (res.message || '未知错误'));
+      done('❌ 失败', 1500);
+      showToast('❌ 移除失败: ' + (res.message || '未知错误'), 4000, 'error');
     }
+  }).catch(err => {
+    done('❌ 异常', 1500);
+    showToast('❌ 移除请求异常: ' + err.message, 4000, 'error');
   });
 }
 
@@ -1868,7 +2001,8 @@ function fetchRemoteModels() {
   });
 }
 
-function saveLlmConfig() {
+function saveLlmConfig(btn) {
+  const saveBtn = btn || document.getElementById('btnSaveLlm');
   let model = document.getElementById('llmModelSelect').value;
   if (model === '__custom__') {
     model = document.getElementById('llmCustomModel').value.trim();
@@ -1888,17 +2022,26 @@ function saveLlmConfig() {
     digest_max_kb: isNaN(maxKbVal) ? 2048 : maxKbVal
   };
 
+  const done = setBtnLoading(saveBtn, '正在保存配置...');
+  showToast('正在持久化大模型配置...', 3000);
+
   req('/api/llm/config', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
   }).then(res => {
     if (res.ok) {
-      showToast('🎉 大模型配置已保存，厂商与 API Key 已持久化记录！', 4000);
+      done('✅ 保存成功！', 1500);
+      showToast('🎉 大模型配置已成功保存，厂商与 API Key 已持久化记录！', 4000, 'success');
       loadLlmConfig();
     } else {
+      done('❌ 保存失败', 2000);
+      showToast('❌ 保存失败: ' + (res.detail || '未知错误'), 4000, 'error');
       alert('保存失败: ' + (res.detail || '未知错误'));
     }
+  }).catch(err => {
+    done('❌ 网络异常', 2000);
+    showToast('❌ 保存配置网络异常: ' + err.message, 4000, 'error');
   });
 }
 
@@ -1973,7 +2116,13 @@ function loadPushConfig() {
   });
 }
 
-function savePushConfig(showNotice = true) {
+function savePushConfig(showNotice = true, btn) {
+  const saveBtn = btn || (showNotice ? document.getElementById('btnSavePush') : null);
+  const done = setBtnLoading(saveBtn, '正在保存推送配置...');
+  if (showNotice) {
+    showToast('正在保存所有消息推送配置...', 3000);
+  }
+
   const payload = {
     policy: {
       mode: document.getElementById('pushPolicyMode') ? document.getElementById('pushPolicyMode').value : 'all',
@@ -2003,16 +2152,27 @@ function savePushConfig(showNotice = true) {
       url: document.getElementById('customUrl') ? document.getElementById('customUrl').value.trim() : ''
     }
   };
+
   return req('/api/push/config', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
   }).then(res => {
-    if (res.ok && showNotice) showToast('✅ 推送中心全部配置已保存！');
+    if (res.ok) {
+      done('✅ 保存成功！', 1500);
+      if (showNotice) showToast('🎉 推送中心所有配置已成功保存！', 3500, 'success');
+    } else {
+      done('❌ 保存失败', 2000);
+      if (showNotice) showToast('❌ 推送配置保存失败: ' + (res.detail || '未知错误'), 4000, 'error');
+    }
+  }).catch(err => {
+    done('❌ 异常', 2000);
+    if (showNotice) showToast('❌ 保存推送配置网络异常: ' + err.message, 4000, 'error');
   });
 }
 
-function testPush(channel) {
+function testPush(channel, btn) {
+  const done = setBtnLoading(btn, '测试发送中...');
   // 1. 若对应通道输入框有内容，自动激活开关
   if (channel === 'pushplus') {
     const el = document.getElementById('pushplusToken');
@@ -2077,15 +2237,19 @@ function testPush(channel) {
     if (res.ok && res.results && res.results[channel]) {
       const r = res.results[channel];
       if (r.ok) {
-        showToast('🎉 [' + cName + '] 测试推送发送成功！请在目标设备查收。', 5000);
+        done('✅ 发送成功', 1500);
+        showToast('🎉 [' + cName + '] 测试推送发送成功！请在目标设备查收。', 5000, 'success');
       } else {
-        showToast('❌ [' + cName + '] 发送失败: ' + (r.error || r.msg || JSON.stringify(r)), 6000);
+        done('❌ 发送失败', 2000);
+        showToast('❌ [' + cName + '] 发送失败: ' + (r.error || r.msg || JSON.stringify(r)), 6000, 'error');
       }
     } else {
-      showToast('❌ 未收到 [' + cName + '] 的有效响应', 4000);
+      done('❌ 无响应', 2000);
+      showToast('❌ 未收到 [' + cName + '] 的有效响应', 4000, 'error');
     }
   }).catch(err => {
-    showToast('❌ 测试请求网络错误: ' + err.message, 5000);
+    done('❌ 异常', 2000);
+    showToast('❌ 测试请求网络错误: ' + err.message, 5000, 'error');
   });
 }
 
@@ -2181,30 +2345,56 @@ function loadLogs() {
 }
 
 
-function clearLogs() {
+function clearLogs(btn) {
   if (!confirm('确定清空所有审计日志吗？')) return;
+  const done = setBtnLoading(btn, '清空中...');
   req('/api/logs', { method: 'DELETE' }).then(() => {
-    showToast('日志已清空');
+    done('✅ 已清空', 1500);
+    showToast('🗑️ 运行日志已清空', 3000, 'success');
     loadLogs();
+  }).catch(err => {
+    done('❌ 失败', 1500);
+    showToast('❌ 清空日志失败: ' + err.message, 4000, 'error');
   });
 }
 
-function testNetPing() {
+function testNetPing(btn) {
+  const testBtn = btn || document.getElementById('netPingBtn');
+  const done = setBtnLoading(testBtn, '测速中...');
   const el = document.getElementById('netPingVal');
   el.innerText = '正在测速...';
   req('/api/system/net_ping').then(res => {
     if (res.online) {
+      done('✅ 正常', 1500);
       el.innerHTML = '<span style="color:var(--success);">✅ 连通正常 (' + res.latency_ms + ' ms)</span>';
+      showToast('🎉 外网连通测试正常，延迟: ' + res.latency_ms + 'ms', 3000, 'success');
     } else {
+      done('❌ 受阻', 1500);
       el.innerHTML = '<span style="color:var(--danger);">❌ 连通受阻 (' + (res.error || '超时') + ')</span>';
+      showToast('❌ 外网连通受阻: ' + (res.error || '超时'), 4000, 'error');
     }
+  }).catch(err => {
+    done('❌ 异常', 1500);
+    el.innerHTML = '<span style="color:var(--danger);">❌ 测速异常</span>';
+    showToast('❌ 网络测速异常: ' + err.message, 4000, 'error');
   });
 }
 
-function triggerWeeklyReportNow() {
-  showToast('正在生成健康周报...');
+function triggerWeeklyReportNow(btn) {
+  const done = setBtnLoading(btn, '生成周报中...');
+  showToast('📊 正在收集系统与任务数据生成健康体检周报...', 4000);
   req('/api/system/trigger_report', { method: 'POST' }).then(res => {
-    if (res.ok) alert('周报生成完毕并推送：\n\n' + res.report);
+    if (res.ok) {
+      done('✅ 生成完毕', 1500);
+      showToast('🎉 周报生成完毕并已推送至配置通道！', 4000, 'success');
+      alert('周报生成完毕并推送：\n\n' + res.report);
+    } else {
+      done('❌ 失败', 1500);
+      showToast('❌ 周报生成失败: ' + (res.detail || '未知错误'), 4000, 'error');
+    }
+  }).catch(err => {
+    done('❌ 异常', 1500);
+    showToast('❌ 生成周报请求异常: ' + err.message, 4000, 'error');
   });
 }
 
@@ -2237,20 +2427,29 @@ function handleBackupFile(input) {
   reader.readAsText(file);
 }
 
-function changeAdminPassword() {
+function changeAdminPassword(btn) {
   const pwd = document.getElementById('newAdminPwd').value.trim();
   if (!pwd) return alert('密码不能为空');
+  const saveBtn = btn || document.getElementById('btnChangePwd');
+  const done = setBtnLoading(saveBtn, '正在更新...');
   req('/api/system/password', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ enabled: true, password: pwd })
   }).then(res => {
     if (res.ok) {
+      done('✅ 更新成功', 1500);
       authToken = pwd;
       localStorage.setItem('fnos_token', pwd);
-      showToast('管理密码修改成功！');
+      showToast('🎉 管理密码修改成功！', 3500, 'success');
       document.getElementById('newAdminPwd').value = '';
+    } else {
+      done('❌ 更新失败', 1500);
+      showToast('❌ 密码修改失败: ' + (res.detail || '未知错误'), 4000, 'error');
     }
+  }).catch(err => {
+    done('❌ 异常', 1500);
+    showToast('❌ 请求异常: ' + err.message, 4000, 'error');
   });
 }
 

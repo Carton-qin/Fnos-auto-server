@@ -239,9 +239,13 @@ class SmartCrawler:
             except Exception as e:
                 logger.warning(f"[Crawler] Error reading cookies from session file {session_path}: {e}")
 
-        # 若强制使用无头浏览器或指定了 session_path
-        if force_headless:
-            logger.info(f"[Crawler] Task requested force_headless=True for {url}")
+        # 针对 ScienceDirect、Elsevier 等必须使用完整无头浏览器内核渲染的站点，自动升阶
+        is_academic_protected = any(domain in url.lower() for domain in [
+            "sciencedirect.com", "elsevier.com", "springer.com", "wiley.com",
+            "nature.com", "ieee.org", "researchgate.net"
+        ])
+        if (force_headless or is_academic_protected) and self.playwright_available:
+            logger.info(f"[Crawler] Routing directly to Playwright Chromium (academic={is_academic_protected}, force={force_headless}) for {url}")
             return await self._fetch_with_playwright(url, req_headers, timeout, max_bytes, session_path=session_path)
 
         # 一级抓取：使用异步 httpx
@@ -267,9 +271,11 @@ class SmartCrawler:
                 if needs_escalation and self.playwright_available and method.upper() == "GET":
                     logger.info(f"[Crawler] Triggering Smart Escalation to Headless Chromium for {url}: {reason}")
                     playwright_res = await self._fetch_with_playwright(url, req_headers, timeout, max_bytes, session_path=session_path)
-                    if playwright_res.ok:
+                    # 只要无头浏览器拿到有效正文或非空，就优先使用无头渲染结果，决不盲目回退到 403 拦截页
+                    if playwright_res.ok or len(playwright_res.text.strip()) > 100:
                         return playwright_res
-                    logger.warning(f"[Crawler] Playwright escalation failed ({playwright_res.error}), falling back to httpx response")
+                    logger.warning(f"[Crawler] Playwright escalation failed ({playwright_res.error}), returning response")
+                    return playwright_res
 
                 clean_text = clean_html_noise(raw_text, max_bytes) if "html" in resp.headers.get("content-type", "").lower() else (raw_text[:max_bytes] if max_bytes > 0 else raw_text)
 
@@ -364,11 +370,24 @@ class SmartCrawler:
             async with async_playwright() as p:
                 browser = await self._launch_browser(p)
 
-                # 如果存在有效会话文件，加载 StorageState
+                # 增强反爬伪装配置：注入完整现代 Chrome 真实指纹与 Sec-Ch-Ua
                 context_kwargs = {
-                    "user_agent": headers.get("User-Agent", DEFAULT_UA),
-                    "viewport": {"width": 1280, "height": 800},
-                    "locale": "zh-CN"
+                    "user_agent": headers.get("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"),
+                    "viewport": {"width": 1920, "height": 1080},
+                    "locale": "en-US,en;q=0.9",
+                    "timezone_id": "Asia/Shanghai",
+                    "extra_http_headers": {
+                        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+                        "Accept-Language": "en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7",
+                        "Sec-Ch-Ua": '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
+                        "Sec-Ch-Ua-Mobile": "?0",
+                        "Sec-Ch-Ua-Platform": '"Windows"',
+                        "Sec-Fetch-Dest": "document",
+                        "Sec-Fetch-Mode": "navigate",
+                        "Sec-Fetch-Site": "none",
+                        "Sec-Fetch-User": "?1",
+                        "Upgrade-Insecure-Requests": "1"
+                    }
                 }
                 if session_path and os.path.exists(session_path) and os.path.getsize(session_path) > 10:
                     context_kwargs["storage_state"] = session_path
@@ -392,28 +411,45 @@ class SmartCrawler:
                         logger.warning(f"[Crawler] Error adding cookies: {ce}")
 
                 page = await context.new_page()
-                # 增强防检测脚本
+                # 增强防检测脚本：彻底抹平 Chromium 无头指纹特征
                 await page.add_init_script("""
                     Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
-                    window.chrome = { runtime: {} };
-                    Object.defineProperty(navigator, 'languages', {get: () => ['zh-CN', 'zh', 'en']});
-                    Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3]});
+                    window.chrome = { runtime: {}, loadTimes: () => {}, csi: () => {}, app: {} };
+                    Object.defineProperty(navigator, 'languages', {get: () => ['en-US', 'en', 'zh-CN', 'zh']});
+                    Object.defineProperty(navigator, 'plugins', {get: () => [1, 2, 3, 4, 5]});
+                    const origQuery = window.navigator.permissions ? window.navigator.permissions.query : null;
+                    if (origQuery) {
+                        window.navigator.permissions.query = (p) => (p.name === 'notifications' ? Promise.resolve({ state: Notification.permission }) : origQuery(p));
+                    }
                 """)
 
                 response = None
                 try:
-                    response = await page.goto(url, wait_until="networkidle", timeout=timeout * 1000)
-                except Exception:
-                    try:
-                        response = await page.goto(url, wait_until="domcontentloaded", timeout=15000)
-                    except Exception as e:
-                        logger.warning(f"[Crawler] Playwright page.goto warning: {e}")
+                    response = await page.goto(url, wait_until="domcontentloaded", timeout=max(20, timeout) * 1000)
+                except Exception as e:
+                    logger.warning(f"[Crawler] Playwright page.goto warning: {e}")
 
-                await page.wait_for_timeout(2500)
+                # 智能等待与轮询：识别 Cloudflare Turnstile / 5s 盾质询并等待自动放行
+                for attempt in range(8):
+                    body_sample = await page.evaluate("() => document.body ? document.body.innerText.toLowerCase() : ''")
+                    if any(kw in body_sample for kw in ["just a moment...", "checking your browser", "challenge-running", "cf-turnstile", "turnstile"]):
+                        logger.info(f"[Crawler] Cloudflare challenge in progress (round {attempt+1}/8), waiting for solver...")
+                        await page.wait_for_timeout(2500)
+                    else:
+                        break
+
+                # 留足时间供 React / Vue 单页面 SPA 完成接口数据填充
+                await page.wait_for_timeout(3000)
 
                 raw_html = await page.content()
                 inner_text = await page.evaluate("() => document.body ? document.body.innerText : ''")
-                status_code = response.status if response else 200
+                
+                # 判定实际渲染成功状态
+                is_cf_block = any(kw in inner_text.lower() for kw in [
+                    "just a moment...", "cloudflare error", "error 1000", "access denied", "attention required"
+                ])
+                has_valid_content = len(inner_text.strip()) > 100 and not is_cf_block
+                status_code = 200 if has_valid_content else (response.status if response else 403)
 
                 # 若提供了 session_path，更新持久化状态
                 if session_path:
@@ -428,7 +464,6 @@ class SmartCrawler:
                 final_text = inner_text if len(inner_text.strip()) > 100 else clean_html_noise(raw_html, max_bytes)
                 if max_bytes > 0:
                     final_text = final_text[:max_bytes]
-
 
                 return CrawlerResult(
                     ok=(200 <= status_code < 400),
