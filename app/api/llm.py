@@ -54,7 +54,9 @@ async def update_llm_config(req: LLMConfigRequest, db: AsyncSession = Depends(ge
     name = req.name or ""
     if not name:
         b_lower = req.base_url.lower()
-        if "deepseek" in b_lower:
+        if "agentrouter" in b_lower:
+            name = "AgentRouter"
+        elif "deepseek" in b_lower:
             name = "DeepSeek"
         elif "openai" in b_lower:
             name = "OpenAI"
@@ -70,12 +72,25 @@ async def update_llm_config(req: LLMConfigRequest, db: AsyncSession = Depends(ge
     cleaned.insert(0, {
         "name": name,
         "base_url": req.base_url,
-        "api_key": req.api_key
+        "api_key": req.api_key,
+        "model": req.model
     })
-    hist_item.value = cleaned[:5]
+    hist_item.value = cleaned[:15]
 
     await db.commit()
     return {"ok": True, "message": "大模型配置已保存"}
+
+@router.delete("/history/{index}")
+async def delete_llm_history(index: int, db: AsyncSession = Depends(get_db), auth: bool = Depends(get_current_auth)):
+    hist_item = await db.get(SystemConfig, "llm_history")
+    if hist_item and isinstance(hist_item.value, list):
+        history = list(hist_item.value)
+        if 0 <= index < len(history):
+            history.pop(index)
+            hist_item.value = history
+            await db.commit()
+            return {"ok": True, "message": "历史厂商已移除", "history": history}
+    return {"ok": False, "message": "未找到指定历史条目"}
 
 @router.post("/models")
 async def fetch_models(data: dict, auth: bool = Depends(get_current_auth)):

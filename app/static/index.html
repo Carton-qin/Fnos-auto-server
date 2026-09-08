@@ -214,40 +214,67 @@ input:checked + .slider:before { transform: translateX(20px); }
 
   <!-- 3. 大模型中枢 -->
   <div class="tab-pane" id="pane-llm">
-    <div class="card" style="max-width:800px; margin:0 auto;">
-      <div class="section-title" style="margin-bottom:16px;">🤖 大模型客户端配置 (OpenAI 兼容)</div>
+    <div class="card" style="max-width:800px; margin:0 auto; margin-bottom:20px;">
+      <div class="section-title" style="margin-bottom:16px;">🤖 OpenAI 兼容大模型接入</div>
+
+      <!-- 历史厂商快捷切换（已保存的接口 URL 与 API Key） -->
+      <div class="form-group">
+        <label class="form-label">历史厂商快捷切换（已保存的接口 URL 与 API Key）</label>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <select class="form-control" id="llmHistorySelect" onchange="applyLlmHistory(this.value)" style="flex:1;">
+            <option value="">-- 选择历史厂商快速填充 URL 与 Key --</option>
+          </select>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="removeCurrentLlmHistory()" title="从历史记录中移除当前选中的厂商" style="white-space:nowrap;">🗑️ 移除此项</button>
+        </div>
+      </div>
+
+      <!-- 服务商快速预设 -->
       <div class="form-group">
         <label class="form-label">服务商快速预设</label>
         <div style="display:flex; gap:8px; flex-wrap:wrap;">
-          <button class="btn btn-secondary btn-sm" onclick="setLlmPreset('deepseek')">DeepSeek 官方</button>
-          <button class="btn btn-secondary btn-sm" onclick="setLlmPreset('qwen')">阿里云百炼 (通义千问)</button>
-          <button class="btn btn-secondary btn-sm" onclick="setLlmPreset('kimi')">Moonshot (Kimi)</button>
-          <button class="btn btn-secondary btn-sm" onclick="setLlmPreset('siliconflow')">SiliconFlow 硅基流动</button>
-          <button class="btn btn-secondary btn-sm" onclick="setLlmPreset('openai')">OpenAI 官方</button>
-          <button class="btn btn-secondary btn-sm" onclick="setLlmPreset('agentrouter')">AgentRouter</button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="setLlmPreset('deepseek')">DeepSeek 官方</button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="setLlmPreset('qwen')">阿里云百炼 (通义千问)</button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="setLlmPreset('kimi')">Moonshot (Kimi)</button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="setLlmPreset('siliconflow')">SiliconFlow 硅基流动</button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="setLlmPreset('openai')">OpenAI 官方</button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="setLlmPreset('agentrouter')">AgentRouter</button>
         </div>
       </div>
-      <div class="form-group">
-        <label class="form-label">接口基础地址 (Base URL)</label>
-        <input type="text" id="llmBaseUrl" class="form-control" placeholder="例如: https://api.deepseek.com/v1">
-      </div>
-      <div class="form-group">
-        <label class="form-label">API Key</label>
-        <input type="password" id="llmApiKey" class="form-control" placeholder="sk-...">
-      </div>
+
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label">模型标识 (Model)</label>
-          <div style="display:flex; gap:8px;">
-            <input type="text" id="llmModel" class="form-control" placeholder="例如: deepseek-chat">
-            <button class="btn btn-secondary btn-sm" onclick="fetchOnlineModels()" style="white-space:nowrap;">探测模型</button>
-          </div>
+          <label class="form-label">厂商/备注名称</label>
+          <input type="text" class="form-control" id="llmProviderName" placeholder="例如: AgentRouter 或 自建模型">
         </div>
         <div class="form-group">
-          <label class="form-label">温度 (Temperature): <span id="llmTempText">0.7</span></label>
+          <label class="form-label">接口基础地址 (Base URL)</label>
+          <input type="text" class="form-control" id="llmBaseUrl" placeholder="例如: https://agentrouter.org/v1">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">API Key</label>
+        <input type="password" class="form-control" id="llmApiKey" placeholder="sk-...">
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <label class="form-label" style="margin:0;">选择模型</label>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="fetchRemoteModels()" id="btnFetchModels">🔍 自动探测可用模型</button>
+          </div>
+          <select class="form-control" id="llmModelSelect" onchange="onModelSelect(this.value)">
+            <option value="">-- 点击右上角探测模型或手动输入 --</option>
+            <option value="__custom__">-- 手动输入自定义模型 --</option>
+          </select>
+          <input type="text" class="form-control" id="llmCustomModel" placeholder="请输入模型名称 (例如: gpt-4o-mini 或 deepseek-chat)" style="display:none; margin-top:8px;">
+        </div>
+        <div class="form-group">
+          <label class="form-label">采样温度 (Temperature): <span id="llmTempText">0.7</span></label>
           <input type="range" id="llmTemp" min="0" max="1.5" step="0.1" value="0.7" class="form-control" oninput="document.getElementById('llmTempText').innerText=this.value">
         </div>
       </div>
+
       <div class="form-group">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
           <label class="form-label" style="margin-bottom:0;">学术专刊/网页长文本抓取上限: <span id="llmMaxKbText" style="color:var(--primary); font-weight:600;">2048</span> <span id="llmMaxKbUnit" style="color:var(--primary); font-weight:600;">KB (2.0 MB)</span></label>
@@ -262,10 +289,19 @@ input:checked + .slider:before { transform: translateX(20px); }
         </small>
       </div>
 
-      <div style="display:flex; justify-content:space-between; margin-top:24px;">
-        <button class="btn btn-secondary" onclick="testLlmConnection()">🧪 发起测试对话</button>
-        <button class="btn btn-primary" onclick="saveLlmConfig()">💾 保存配置</button>
+      <div style="text-align:right; margin-top:20px;">
+        <button type="button" class="btn btn-primary" onclick="saveLlmConfig()" style="padding:10px 32px; font-size:0.95rem; font-weight:700;">💾 保存模型配置</button>
       </div>
+    </div>
+
+    <!-- 💬 即时大模型对话测试 -->
+    <div class="card" style="max-width:800px; margin:0 auto; margin-bottom:20px;">
+      <div class="section-title" style="margin-bottom:12px;">💬 即时大模型对话测试</div>
+      <div style="display:flex; gap:10px; margin-bottom:12px;">
+        <input type="text" class="form-control" id="llmTestInput" placeholder="输入测试问题，如：请精简总结三个核心特点" value="你好，请用一句话回答：1+1等于几？">
+        <button type="button" class="btn btn-secondary" onclick="sendLlmTest()" id="btnSendTest" style="white-space:nowrap;">🚀 发送测试</button>
+      </div>
+      <div style="background:#0f172a; border-radius:8px; padding:14px; min-height:60px; font-size:0.9rem; white-space:pre-wrap; border:1px solid var(--border); color:#e2e8f0; line-height:1.6;" id="llmTestOutput">等待测试输入...</div>
     </div>
   </div>
 
@@ -1621,94 +1657,279 @@ function syncLlmMaxKb(val) {
   }
 }
 
+// 大模型管理 (对齐 ESP32 历史厂商切换、自动探测模型下拉选择、即时对话测试)
+let currentLlmHistory = [];
+
 function loadLlmConfig() {
   req('/api/llm/config').then(res => {
     if (!res.ok) return;
     const cfg = res.config || {};
+    currentLlmHistory = res.history || [];
+
     document.getElementById('llmBaseUrl').value = cfg.base_url || '';
     document.getElementById('llmApiKey').value = cfg.api_key || '';
-    document.getElementById('llmModel').value = cfg.model || 'deepseek-chat';
-    document.getElementById('llmTemp').value = cfg.temperature || 0.7;
-    document.getElementById('llmTempText').innerText = cfg.temperature || 0.7;
+    document.getElementById('llmTemp').value = cfg.temperature !== undefined ? cfg.temperature : 0.7;
+    document.getElementById('llmTempText').innerText = cfg.temperature !== undefined ? cfg.temperature : 0.7;
     const maxKb = cfg.digest_max_kb !== undefined ? cfg.digest_max_kb : 2048;
     syncLlmMaxKb(maxKb);
+
+    // 渲染历史厂商下拉选择
+    renderLlmHistorySelect(cfg.base_url);
+
+    // 渲染模型选择下拉
+    updateModelSelection(cfg.model || 'deepseek-chat');
+  });
+}
+
+function renderLlmHistorySelect(currentBaseUrl) {
+  const hs = document.getElementById('llmHistorySelect');
+  if (!hs) return;
+  hs.innerHTML = '<option value="">-- 选择历史厂商快速填充 URL 与 Key --</option>';
+  currentLlmHistory.forEach((item, idx) => {
+    const displayUrl = (item.base_url || '').replace(/^https?:\/\//, '');
+    const modelInfo = item.model ? ` [${item.model}]` : '';
+    const isCur = (item.base_url === currentBaseUrl);
+    hs.innerHTML += `<option value="${idx}" ${isCur ? 'selected' : ''}>${item.name || '厂商'} (${displayUrl})${modelInfo}</option>`;
+    if (isCur && document.getElementById('llmProviderName') && !document.getElementById('llmProviderName').value) {
+      document.getElementById('llmProviderName').value = item.name || '';
+    }
+  });
+}
+
+function applyLlmHistory(idx) {
+  if (idx === '' || idx === undefined) return;
+  const item = currentLlmHistory[parseInt(idx)];
+  if (item) {
+    if (document.getElementById('llmProviderName')) {
+      document.getElementById('llmProviderName').value = item.name || '';
+    }
+    document.getElementById('llmBaseUrl').value = item.base_url || '';
+    document.getElementById('llmApiKey').value = item.api_key || '';
+    if (item.model) {
+      updateModelSelection(item.model);
+    }
+    showToast('已载入 ' + (item.name || '该厂商') + ' 接口与 API Key');
+  }
+}
+
+function removeCurrentLlmHistory() {
+  const hs = document.getElementById('llmHistorySelect');
+  if (!hs || !hs.value) {
+    alert('请先在下拉列表中选择要移除的历史厂商');
+    return;
+  }
+  const idx = parseInt(hs.value);
+  const item = currentLlmHistory[idx];
+  const name = item ? item.name : '此厂商';
+  if (!confirm('确定将【' + name + '】从历史厂商列表中移除吗？')) return;
+
+  req('/api/llm/history/' + idx, { method: 'DELETE' }).then(res => {
+    if (res.ok) {
+      showToast('已移除 ' + name + ' 历史凭证');
+      loadLlmConfig();
+    } else {
+      alert('移除失败: ' + (res.message || '未知错误'));
+    }
   });
 }
 
 function setLlmPreset(provider) {
-  if (provider === 'deepseek') {
-    document.getElementById('llmBaseUrl').value = 'https://api.deepseek.com/v1';
-    document.getElementById('llmModel').value = 'deepseek-chat';
-  } else if (provider === 'qwen') {
-    document.getElementById('llmBaseUrl').value = 'https://dashscope.aliyuncs.com/compatible-mode/v1';
-    document.getElementById('llmModel').value = 'qwen-plus';
-  } else if (provider === 'kimi') {
-    document.getElementById('llmBaseUrl').value = 'https://api.moonshot.cn/v1';
-    document.getElementById('llmModel').value = 'moonshot-v1-8k';
-  } else if (provider === 'siliconflow') {
-    document.getElementById('llmBaseUrl').value = 'https://api.siliconflow.cn/v1';
-    document.getElementById('llmModel').value = 'deepseek-ai/DeepSeek-V3';
-  } else if (provider === 'openai') {
-    document.getElementById('llmBaseUrl').value = 'https://api.openai.com/v1';
-    document.getElementById('llmModel').value = 'gpt-4o-mini';
-  } else if (provider === 'agentrouter') {
-    document.getElementById('llmBaseUrl').value = 'https://agentrouter.org/v1';
-    document.getElementById('llmModel').value = 'deepseek-chat';
+  const presets = {
+    'deepseek': { name: 'DeepSeek 官方', url: 'https://api.deepseek.com/v1', model: 'deepseek-chat' },
+    'qwen': { name: '阿里云百炼 (通义千问)', url: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-plus' },
+    'kimi': { name: 'Moonshot (Kimi)', url: 'https://api.moonshot.cn/v1', model: 'moonshot-v1-8k' },
+    'siliconflow': { name: 'SiliconFlow 硅基流动', url: 'https://api.siliconflow.cn/v1', model: 'deepseek-ai/DeepSeek-V3' },
+    'openai': { name: 'OpenAI 官方', url: 'https://api.openai.com/v1', model: 'gpt-4o-mini' },
+    'agentrouter': { name: 'AgentRouter', url: 'https://agentrouter.org/v1', model: 'deepseek-chat' }
+  };
+  const p = presets[provider];
+  if (!p) return;
+
+  if (document.getElementById('llmProviderName')) {
+    document.getElementById('llmProviderName').value = p.name;
+  }
+  document.getElementById('llmBaseUrl').value = p.url;
+
+  // 智能查找是否已保存此厂商的历史 API Key
+  const matched = currentLlmHistory.find(h => h.base_url && (h.base_url === p.url || h.base_url.includes(p.url) || p.url.includes(h.base_url)));
+  if (matched && matched.api_key) {
+    document.getElementById('llmApiKey').value = matched.api_key;
+    if (matched.name && document.getElementById('llmProviderName')) {
+      document.getElementById('llmProviderName').value = matched.name;
+    }
+    updateModelSelection(matched.model || p.model);
+    showToast(`✅ 已切换至【${p.name}】，并自动填入已保存的 API Key！`);
+  } else {
+    updateModelSelection(p.model);
+    showToast(`已切换至【${p.name}】预设，请输入该厂商的 API Key`);
   }
 }
 
-function fetchOnlineModels() {
+function updateModelSelection(selectedModel) {
+  const ms = document.getElementById('llmModelSelect');
+  const customInput = document.getElementById('llmCustomModel');
+  if (!ms) return;
+
+  if (!selectedModel) {
+    if (ms.options.length > 0) ms.selectedIndex = 0;
+    if (customInput) customInput.style.display = 'none';
+    return;
+  }
+
+  let found = false;
+  for (let i = 0; i < ms.options.length; i++) {
+    if (ms.options[i].value === selectedModel) {
+      ms.selectedIndex = i;
+      found = true;
+      break;
+    }
+  }
+
+  if (found) {
+    if (customInput) customInput.style.display = 'none';
+  } else {
+    const customOpt = ms.querySelector('option[value="__custom__"]');
+    const opt = document.createElement('option');
+    opt.value = selectedModel;
+    opt.textContent = selectedModel;
+    if (customOpt) {
+      ms.insertBefore(opt, customOpt);
+    } else {
+      ms.appendChild(opt);
+    }
+    ms.value = selectedModel;
+    if (customInput) customInput.style.display = 'none';
+  }
+}
+
+function onModelSelect(val) {
+  const customInput = document.getElementById('llmCustomModel');
+  if (!customInput) return;
+  if (val === '__custom__') {
+    customInput.style.display = 'block';
+    customInput.focus();
+  } else {
+    customInput.style.display = 'none';
+  }
+}
+
+function fetchRemoteModels() {
   const url = document.getElementById('llmBaseUrl').value.trim();
   const key = document.getElementById('llmApiKey').value.trim();
-  if (!url || !key) return alert('请先输入 Base URL 和 API Key');
+  if (!url || !key) {
+    alert('请先填写 Base URL 和 API Key！');
+    return;
+  }
 
-  showToast('正在探测模型列表...');
+  const btn = document.getElementById('btnFetchModels');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-icon"></span> 探测中...';
+  }
+  showToast('🔍 正在探测远程可用模型列表...');
+
   req('/api/llm/models', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ base_url: url, api_key: key })
   }).then(res => {
-    if (res.ok && res.models.length > 0) {
-      const selected = prompt('探测成功，发现 ' + res.models.length + ' 个可用模型，请输入要启用的模型名称：\n\n' + res.models.slice(0, 15).join('\n') + (res.models.length > 15 ? '\n...' : ''), res.models[0]);
-      if (selected) document.getElementById('llmModel').value = selected.trim();
-    } else {
-      alert('探测失败: ' + (res.error || '未返回有效模型'));
-    }
-  });
-}
+    if (res.ok && res.models && res.models.length > 0) {
+      const ms = document.getElementById('llmModelSelect');
+      const curVal = ms.value;
+      ms.innerHTML = '';
+      res.models.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m;
+        opt.textContent = m;
+        ms.appendChild(opt);
+      });
+      const customOpt = document.createElement('option');
+      customOpt.value = '__custom__';
+      customOpt.textContent = '-- 手动输入自定义模型 --';
+      ms.appendChild(customOpt);
 
-function testLlmConnection() {
-  const p = prompt('请输入测试对话内容：', '你好，请用一句话回答：1+1等于几？');
-  if (!p) return;
-  showToast('正在调用大模型...');
-  req('/api/llm/test', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt: p })
-  }).then(res => {
-    if (res.ok) {
-      alert('大模型响应结果：\n\n' + res.reply);
+      if (res.models.includes(curVal)) {
+        ms.value = curVal;
+      } else {
+        ms.selectedIndex = 0;
+      }
+      onModelSelect(ms.value);
+      showToast('🎉 探测成功！已载入 ' + res.models.length + ' 个可用模型，请在下拉列表中直接点选！', 5000);
     } else {
-      alert('测试失败: ' + res.reply);
+      showToast(res.error ? ('❌ 探测失败: ' + res.error) : '未能自动获取模型列表，可手动输入', 6000);
+    }
+  }).catch(err => {
+    showToast('❌ 探测请求网络异常: ' + err.message, 5000);
+  }).finally(() => {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '🔍 自动探测可用模型';
     }
   });
 }
 
 function saveLlmConfig() {
+  let model = document.getElementById('llmModelSelect').value;
+  if (model === '__custom__') {
+    model = document.getElementById('llmCustomModel').value.trim();
+  }
+  if (!model) {
+    alert('请选择或输入模型标识！');
+    return;
+  }
+
   const maxKbVal = parseInt(document.getElementById('llmMaxKbInput').value);
   const payload = {
+    name: document.getElementById('llmProviderName') ? document.getElementById('llmProviderName').value.trim() : '',
     base_url: document.getElementById('llmBaseUrl').value.trim(),
     api_key: document.getElementById('llmApiKey').value.trim(),
-    model: document.getElementById('llmModel').value.trim(),
+    model: model,
     temperature: parseFloat(document.getElementById('llmTemp').value) || 0.7,
     digest_max_kb: isNaN(maxKbVal) ? 2048 : maxKbVal
   };
+
   req('/api/llm/config', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
   }).then(res => {
-    if (res.ok) showToast('大模型配置已保存！');
+    if (res.ok) {
+      showToast('🎉 大模型配置已保存，厂商与 API Key 已持久化记录！', 4000);
+      loadLlmConfig();
+    } else {
+      alert('保存失败: ' + (res.detail || '未知错误'));
+    }
+  });
+}
+
+function sendLlmTest() {
+  const prompt = document.getElementById('llmTestInput').value.trim();
+  if (!prompt) return;
+  const out = document.getElementById('llmTestOutput');
+  const btn = document.getElementById('btnSendTest');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-icon"></span> 请求中...';
+  }
+  out.innerText = '🤖 正在向大模型发起请求，请稍候...';
+
+  req('/api/llm/test', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt: prompt })
+  }).then(res => {
+    if (res.ok) {
+      out.innerText = res.reply;
+    } else {
+      out.innerText = '❌ 调用失败: ' + (res.reply || res.detail || '未知错误');
+    }
+  }).catch(err => {
+    out.innerText = '❌ 网络请求异常: ' + err.message;
+  }).finally(() => {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '🚀 发送测试';
+    }
   });
 }
 
