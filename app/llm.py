@@ -47,7 +47,7 @@ class LLMClient:
         # 兼容阿里云百炼 (DashScope) / 通义千问：添加内容风控免检头，防止学术/科技长篇论文触发误报
         if "dashscope" in url.lower() or "aliyun" in url.lower():
             headers["X-DashScope-DataInspection"] = '{"input":"disable","output":"disable"}'
-        elif "openrouter" in url.lower() or "agentrouter" in url.lower():
+        elif "openrouter.ai" in url.lower():
             headers["HTTP-Referer"] = "https://github.com/Carton-qin/Fnos-auto-server"
             headers["X-Title"] = "FNOS Automation Hub"
 
