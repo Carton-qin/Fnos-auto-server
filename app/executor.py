@@ -404,10 +404,14 @@ class TaskExecutor:
         source_url = (params.get("source_url") or "").strip()
         prompt = (params.get("prompt") or "请将以下内容精炼概括为3~5条核心摘要，语言简练客观：").strip()
 
-        # 读取最大截取字节
+        # 读取最大截取字节（飞牛物理内存充沛，解除 256KB 限制，设为 0 时表示不截断，安全上限 100MB）
         llm_cfg = await self.llm_client.get_config()
-        max_kb = max(5, min(256, int(llm_cfg.get("digest_max_kb", 128))))
-        max_bytes = max_kb * 1024
+        cfg_max_kb = int(llm_cfg.get("digest_max_kb", 2048))
+        if cfg_max_kb <= 0:
+            max_bytes = 100 * 1024 * 1024  # 0 为无限制（100MB 极端防护上限）
+        else:
+            max_bytes = max(10, min(102400, cfg_max_kb)) * 1024
+
 
         raw_text = ""
         fetch_mode = "httpx"

@@ -99,8 +99,9 @@ class LLMConfigRequest(BaseModel):
     api_key: str
     model: str = "deepseek-chat"
     temperature: float = 0.7
-    digest_max_kb: int = 128
+    digest_max_kb: int = 2048
     name: Optional[str] = ""
+
 
 class LLMTestRequest(BaseModel):
     prompt: Optional[str] = "你好，请用一句话回答：1+1等于几？"

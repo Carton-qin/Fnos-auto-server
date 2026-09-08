@@ -38,8 +38,9 @@ async def update_llm_config(req: LLMConfigRequest, db: AsyncSession = Depends(ge
         "api_key": req.api_key.strip(),
         "model": req.model.strip(),
         "temperature": req.temperature,
-        "digest_max_kb": max(5, min(256, req.digest_max_kb))
+        "digest_max_kb": max(0, min(102400, req.digest_max_kb))
     }
+
     cfg_item.value = new_cfg
 
     # 更新历史记录

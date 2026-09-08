@@ -41,7 +41,10 @@ class LLMClient:
         endpoint = f"{url}/chat/completions" if not url.endswith("/chat/completions") else url
         headers = {
             "Authorization": f"Bearer {key}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "User-Agent": "RooCode/3.34.8",
+            "HTTP-Referer": "https://github.com/RooVetGit/Roo-Cline",
+            "X-Title": "FNOS Automation Hub"
         }
         payload = {
             "model": mdl,
@@ -61,7 +64,19 @@ class LLMClient:
                         return True, content
                     return False, "大模型响应格式异常：缺少 choices 列表"
                 else:
-                    return False, f"HTTP {resp.status_code}: {resp.text}"
+                    err_msg = resp.text[:300]
+                    try:
+                        err_json = resp.json()
+                        if "error" in err_json:
+                            e_val = err_json["error"]
+                            if isinstance(e_val, dict) and "message" in e_val:
+                                err_msg = e_val["message"]
+                            elif isinstance(e_val, str):
+                                err_msg = e_val
+                    except Exception:
+                        pass
+                    return False, f"HTTP {resp.status_code}: {err_msg}"
+
         except Exception as e:
             logger.error(f"[LLM] Request failed: {e}")
             return False, f"大模型请求异常: {str(e)}"
@@ -131,7 +146,12 @@ class LLMClient:
             return False, [], "Base URL 或 API Key 不能为空"
 
         endpoint = f"{url}/models" if not url.endswith("/models") else url
-        headers = {"Authorization": f"Bearer {api_key}"}
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "User-Agent": "RooCode/3.34.8",
+            "HTTP-Referer": "https://github.com/RooVetGit/Roo-Cline",
+            "X-Title": "FNOS Automation Hub"
+        }
         try:
             async with httpx.AsyncClient(timeout=15.0, verify=False) as client:
                 resp = await client.get(endpoint, headers=headers)
@@ -142,6 +162,19 @@ class LLMClient:
                         if isinstance(item, dict) and "id" in item:
                             model_list.append(item["id"])
                     return True, sorted(model_list), ""
-                return False, [], f"HTTP {resp.status_code}: {resp.text[:200]}"
+
+                err_msg = resp.text[:300]
+                try:
+                    err_json = resp.json()
+                    if "error" in err_json:
+                        e_val = err_json["error"]
+                        if isinstance(e_val, dict) and "message" in e_val:
+                            err_msg = e_val["message"]
+                        elif isinstance(e_val, str):
+                            err_msg = e_val
+                except Exception:
+                    pass
+                return False, [], f"HTTP {resp.status_code}: {err_msg}"
+
         except Exception as e:
             return False, [], str(e)

@@ -127,7 +127,7 @@ def extract_reward(result_msg: str, response_text: str) -> Tuple[Optional[int], 
 
     return None, None
 
-def clean_html_noise(html_text: str, max_bytes: int = 128 * 1024) -> str:
+def clean_html_noise(html_text: str, max_bytes: int = 50 * 1024 * 1024) -> str:
     if not html_text:
         return ""
 
@@ -155,11 +155,13 @@ def clean_html_noise(html_text: str, max_bytes: int = 128 * 1024) -> str:
             lines.append(line_s)
 
     cleaned = "\n".join(lines)
-    encoded = cleaned.encode("utf-8")
-    if len(encoded) > max_bytes:
-        encoded = encoded[:max_bytes]
-        cleaned = encoded.decode("utf-8", errors="ignore")
+    if max_bytes > 0:
+        encoded = cleaned.encode("utf-8")
+        if len(encoded) > max_bytes:
+            encoded = encoded[:max_bytes]
+            cleaned = encoded.decode("utf-8", errors="ignore")
     return cleaned
+
 
 class CrawlerResult:
     def __init__(
@@ -210,7 +212,7 @@ class SmartCrawler:
         headers: Optional[Dict[str, str]] = None,
         body: Optional[str] = None,
         timeout: int = 30,
-        max_bytes: int = 128 * 1024,
+        max_bytes: int = 50 * 1024 * 1024,
         force_headless: bool = False,
         session_path: Optional[str] = None
     ) -> CrawlerResult:
@@ -269,7 +271,8 @@ class SmartCrawler:
                         return playwright_res
                     logger.warning(f"[Crawler] Playwright escalation failed ({playwright_res.error}), falling back to httpx response")
 
-                clean_text = clean_html_noise(raw_text, max_bytes) if "html" in resp.headers.get("content-type", "").lower() else raw_text[:max_bytes]
+                clean_text = clean_html_noise(raw_text, max_bytes) if "html" in resp.headers.get("content-type", "").lower() else (raw_text[:max_bytes] if max_bytes > 0 else raw_text)
+
                 return CrawlerResult(
                     ok=(200 <= resp.status_code < 400),
                     status_code=resp.status_code,
@@ -342,8 +345,9 @@ class SmartCrawler:
         url: str,
         headers: Dict[str, str],
         timeout: int = 30,
-        max_bytes: int = 128 * 1024,
+        max_bytes: int = 50 * 1024 * 1024,
         session_path: Optional[str] = None
+
     ) -> CrawlerResult:
         if not self.playwright_available:
             return CrawlerResult(
@@ -422,7 +426,9 @@ class SmartCrawler:
 
                 latency_ms = int((time.time() - t_start) * 1000)
                 final_text = inner_text if len(inner_text.strip()) > 100 else clean_html_noise(raw_html, max_bytes)
-                final_text = final_text[:max_bytes]
+                if max_bytes > 0:
+                    final_text = final_text[:max_bytes]
+
 
                 return CrawlerResult(
                     ok=(200 <= status_code < 400),
