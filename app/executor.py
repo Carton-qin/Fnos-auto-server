@@ -13,20 +13,25 @@ from app.models import Task, TaskLog, Reward
 logger = logging.getLogger("fnos.executor")
 
 def extract_prompt_keywords(prompt: str) -> List[str]:
-    """从用户提示词中提取专刊领域核心检索关键词，自动剔除指令词与标点"""
+    """从用户提示词中提取领域核心检索关键词，自动剔除指令词与标点"""
     cleaned_prompt = prompt
-    for noise in ["提取并筛选", "提取筛选", "请提取", "请筛选", "请总结", "总结并输出", "相关专刊", "学术专刊", "最新专刊", "专刊征稿"]:
+    for noise in ["提取并筛选", "提取筛选", "请提取", "请筛选", "请总结", "总结并输出", "相关专刊", "学术专刊", "最新专刊", "专刊征稿", "最新公告", "通知公告", "最新动态", "筛选关注", "关注"]:
         cleaned_prompt = cleaned_prompt.replace(noise, " ")
 
+    # 保护专有复合词
+    cleaned_prompt = cleaned_prompt.replace("碳中和", "___CN___")
+    cleaned_prompt = re.sub(r"(?:和|及|与)", " ", cleaned_prompt)
+    cleaned_prompt = cleaned_prompt.replace("___CN___", "碳中和")
+
     raw_tokens = re.split(r"[/,、\s+;；|]+", cleaned_prompt)
-    stop_words = {"提取", "并", "筛选", "专刊", "总结", "分析", "请", "输出", "列出", "关注", "相关", "最新", "信息", "所有", "关于", "订阅", "通知", "检索"}
+    stop_words = {"提取", "并", "筛选", "专刊", "总结", "分析", "请", "输出", "列出", "关注", "相关", "最新", "信息", "所有", "关于", "订阅", "通知", "检索", "动态", "公告"}
     clean_kws = []
     for t in raw_tokens:
         t = t.strip()
         if not t or t in stop_words:
             continue
-        t = re.sub(r"^(提取|筛选|查找|搜索|关注|订阅)", "", t)
-        t = re.sub(r"(专刊|期刊|特刊|征稿)$", "", t)
+        t = re.sub(r"^(提取|筛选|查找|搜索|关注|订阅|监控)", "", t)
+        t = re.sub(r"(专刊|期刊|特刊|征稿|公告|通知|动态)$", "", t)
         if t and t not in stop_words and t not in clean_kws:
             clean_kws.append(t)
     return clean_kws
@@ -147,6 +152,111 @@ def parse_academic_special_issues(raw_text: str, prompt: str = "", source_url: s
         md.append(f"- ⏳ **投稿截止**: **{it['deadline']}**")
         if it['editors']:
             md.append(f"- 👨‍🔬 **客座编辑**: {it['editors']}")
+        if it.get("matched_kws"):
+            md.append(f"- 🏷️ **命中标签**: `{' / '.join(it['matched_kws'])}`")
+        md.append("")
+
+    return True, "\n".join(md)
+
+def parse_generic_listing(raw_text: str, prompt: str = "", source_url: str = "") -> Tuple[bool, str]:
+    """通用网站动态/通知/公告列表的高精度结构化解析器（免大模型调用、零风控风险）"""
+    if not raw_text or len(raw_text.strip()) < 80:
+        return False, ""
+
+    link_pattern = re.compile(r"\[([^\]\r\n]{4,120})\]\((https?://[^\)\s]+)\)")
+    date_pattern = re.compile(r"(\b20\d{2}[-/年.]\d{1,2}[-/月.]\d{1,2}\b|\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+\d{1,2},?\s+20\d{2}\b|\b\d{1,2}[-/月]\d{1,2}\b)")
+
+    lines = [l.strip() for l in raw_text.splitlines() if l.strip()]
+    items: List[Dict[str, Any]] = []
+
+    # 1. 扫描 Markdown 链接条目
+    for l in lines:
+        for m in link_pattern.finditer(l):
+            title = m.group(1).strip()
+            href = m.group(2).strip()
+            if any(nav in title.lower() for nav in ["home", "about", "contact", "login", "register", "privacy", "terms", "首页", "登录", "注册", "关于我们", "返回"]):
+                continue
+            d_m = date_pattern.search(l)
+            date_str = d_m.group(1) if d_m else ""
+            items.append({
+                "title": title,
+                "url": href,
+                "date": date_str,
+                "raw": l
+            })
+
+    # 2. 补充扫描带日期的普通列表行
+    if len(items) < 3:
+        for l in lines:
+            d_m = date_pattern.search(l)
+            if d_m and len(l) > 10:
+                date_str = d_m.group(1)
+                title = l.replace(date_str, "").strip(" -–:：·•[]()|#*")
+                if len(title) >= 5 and not any(it["title"] == title for it in items):
+                    items.append({
+                        "title": title,
+                        "url": "",
+                        "date": date_str,
+                        "raw": l
+                    })
+
+    if len(items) < 2:
+        return False, ""
+
+    # 去重
+    unique_items = []
+    seen_titles = set()
+    for it in items:
+        clean_t = re.sub(r"\s+", " ", it["title"]).lower()
+        if clean_t not in seen_titles:
+            seen_titles.add(clean_t)
+            unique_items.append(it)
+
+    user_kws = extract_prompt_keywords(prompt)
+    kw_regex_map = {}
+    for uk in user_kws:
+        patterns = []
+        for m_key, p_list in MAPPED_ACADEMIC_PATTERNS.items():
+            if m_key in uk or uk in m_key:
+                patterns.extend(p_list)
+        if not patterns:
+            patterns.append(r"\b" + re.escape(uk) + r"\b")
+            patterns.append(re.escape(uk))
+        kw_regex_map[uk] = re.compile("|".join(patterns), re.I)
+
+    matched_items = []
+    for it in unique_items:
+        match_str = f"{it['title']} {it['date']} {it['raw']}"
+        hits = []
+        for uk, rgx in kw_regex_map.items():
+            if rgx.search(match_str):
+                hits.append(uk)
+        if hits:
+            it["matched_kws"] = hits
+            matched_items.append(it)
+
+    target_list = matched_items if matched_items else unique_items[:25]
+    total_count = len(unique_items)
+    match_count = len(matched_items)
+
+    md = []
+    md.append("## 🌐 网站动态与资讯速报 (🎯 本地通用规则智能提纯)")
+    if source_url:
+        md.append(f"> 🔗 **信息来源**: [{source_url}]({source_url})")
+    if user_kws:
+        md.append(f"> 🎯 **订阅检索目标**: `{', '.join(user_kws)}`")
+    if matched_items:
+        md.append(f"> 📊 **检索统计**: 共扫描到 **{total_count}** 条动态，精准筛选出 **{match_count}** 条契合重点条目。\n")
+    else:
+        md.append(f"> 📊 **检索统计**: 共扫描到 **{total_count}** 条动态（为您精选展示最新 {len(target_list)} 项）：\n")
+
+    for idx, it in enumerate(target_list, 1):
+        if it["url"]:
+            md.append(f"### {idx}. [{it['title']}]({it['url']})")
+        else:
+            md.append(f"### {idx}. {it['title']}")
+        if it["date"]:
+            md.append(f"- 📅 **发布日期**: **{it['date']}**")
         if it.get("matched_kws"):
             md.append(f"- 🏷️ **命中标签**: `{' / '.join(it['matched_kws'])}`")
         md.append("")
@@ -677,17 +787,21 @@ class TaskExecutor:
 
         mode_badge = "🌐 无头浏览器深度渲染" if fetch_mode == "playwright" else "⚡ 极速网络抓取"
 
-        # 1. 本地高精度结构化规则解析引擎（针对 ScienceDirect/Elsevier 等学术期刊专刊征稿）
+        # 1. 本地高精度结构化规则解析引擎（双引擎协同：优先学术期刊专刊，其次通用网站动态/通知列表）
         # 极速、确定性、零Token消耗、且对任何大模型风控审查天然免疫
         has_structured, structured_report = parse_academic_special_issues(raw_text, prompt, source_url)
+        engine_name = "本地学术专刊结构化引擎"
+
+        if not has_structured:
+            has_structured, structured_report = parse_generic_listing(raw_text, prompt, source_url)
+            engine_name = "本地通用网站资讯提取引擎"
 
         if has_structured and structured_report:
-            logger.info(f"[Executor] Native structured extractor successfully parsed academic issues for {task.name}.")
-            # 准备精炼提取后的专刊摘要尝试由大模型做宏观趋势与热点归纳（限制长度，防整页抓取误触发词汇过滤）
+            logger.info(f"[Executor] {engine_name} successfully parsed content for {task.name}.")
             condensed_digest = structured_report[:3500]
             messages = [
-                {"role": "system", "content": "你是一个严谨的信息提炼与科技速报分析师。请对下方精选学术专刊清单进行3~4句核心研究趋势与截稿热点的概括总结，语言简练客观。"},
-                {"role": "user", "content": f"{prompt}\n\n【精选学术专刊清单】\n{condensed_digest}"}
+                {"role": "system", "content": "你是一个严谨的信息提炼与科技速报分析师。请对下方精选内容清单进行3~4句核心动态与趋势的概括总结，语言简练客观。"},
+                {"role": "user", "content": f"{prompt}\n\n【精选内容清单】\n{condensed_digest}"}
             ]
             try:
                 ok_llm, ai_insight = await self.llm_client.chat_completion(messages, timeout=25)
@@ -697,18 +811,18 @@ class TaskExecutor:
             # 关键保障：无论大模型是否被服务商审查拦截(content-blocked)或网络超时，本地高精度提取结果均直接作为最终速报输出！
             # 标记为 SUCCESS，正常触发通知推送，彻底消除因模型风控或网络故障导致的任务失败！
             if ok_llm and ai_insight and "content-blocked" not in ai_insight.lower() and not any(kw in ai_insight for kw in ["❌ 抓取失败", "拦截页面"]):
-                final_report = f"【信息提炼速报】({mode_badge} · 🎯 本地高精度专刊检索 + 🤖 学术AI研判)\n\n### 💡 核心趋势与截稿研判\n{ai_insight}\n\n---\n\n{structured_report}"
+                final_report = f"【信息提炼速报】({mode_badge} · 🎯 本地高精度检索 + 🤖 智能AI研判)\n\n### 💡 核心趋势与重点研判\n{ai_insight}\n\n---\n\n{structured_report}"
                 return True, final_report, ""
             else:
-                logger.info(f"[Executor] LLM moderation or error encountered ({ai_insight[:60]}), seamlessly adopting native high-precision report (SUCCESS).")
-                final_report = f"【信息提炼速报】({mode_badge} · 🎯 本地高精度结构化智能解析)\n\n{structured_report}"
+                logger.info(f"[Executor] LLM moderation or error encountered ({ai_insight[:60]}), seamlessly adopting native structured report (SUCCESS).")
+                final_report = f"【信息提炼速报】({mode_badge} · 🎯 {engine_name})\n\n{structured_report}"
                 return True, final_report, ""
 
-        # 2. 普通非结构化网页或自定义文本的常规大模型提炼流程
+        # 2. 普通单篇文章/长文/博客的常规提炼流程
         cleaned_text = clean_academic_content(raw_text)
 
         messages = [
-            {"role": "system", "content": "你是一个严谨的信息提炼与科技速报分析师。具有强大的学术期刊专刊检索、动态页面解析与要点提炼能力。"},
+            {"role": "system", "content": "你是一个严谨的信息提炼与科技速报分析师。具有强大的网页要点提取、内容摘要与分析提炼能力。"},
             {"role": "user", "content": f"{prompt}\n\n【抓取内容 (来源模式: {fetch_mode})】\n{cleaned_text}"}
         ]
 
@@ -720,16 +834,18 @@ class TaskExecutor:
             focused_text = filter_by_prompt_keywords(cleaned_text, prompt)
             if focused_text and len(focused_text) < len(cleaned_text):
                 recovery_messages = [
-                    {"role": "system", "content": "你是一个严谨的信息提炼与科技速报分析师。请针对下方已初筛聚焦的学术专刊征稿条目进行提炼总结，按截止日期和期刊进行归纳。"},
-                    {"role": "user", "content": f"{prompt}\n\n【初筛聚焦专刊列表】\n{focused_text}"}
+                    {"role": "system", "content": "你是一个严谨的信息提炼与科技速报分析师。请针对下方已初筛聚焦的正文内容进行提炼总结。"},
+                    {"role": "user", "content": f"{prompt}\n\n【初筛聚焦内容】\n{focused_text}"}
                 ]
                 ok_retry, retry_res = await self.llm_client.chat_completion(recovery_messages, timeout=60)
                 if ok_retry:
                     ok = True
-                    ai_res = f"*(已自动启用专刊精准净化过滤)*\n\n{retry_res}"
+                    ai_res = f"*(已自动启用正文精准净化过滤)*\n\n{retry_res}"
                     logger.info(f"[Executor] Keyword-focused recovery succeeded for task {task.name}!")
                 else:
-                    ai_res = f"模型内容安全审查拦截 (content-blocked): 建议切换为 DeepSeek 官方或 OpenAI 等对学术词汇无风控拦截的厂商接口。"
+                    # 终极无缝容灾兜底：哪怕重试仍被模型拦截，直接返回本地纯净正文摘要，绝不让任务失败！
+                    logger.info(f"[Executor] LLM retry still blocked, outputting focused excerpts as successful digest.")
+                    return True, f"【信息提炼速报】({mode_badge} · 🎯 本地智能正文提纯输出)\n\n> ℹ️ *大模型服务商内容审查拦截，已自动切换为本地智能精简正文输出。*\n\n{focused_text[:2000]}", ""
 
         if ok:
             summary_header = f"【信息提炼速报】({mode_badge})\n\n{ai_res}"

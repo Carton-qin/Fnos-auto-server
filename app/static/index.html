@@ -530,6 +530,19 @@ input:checked + .slider:before { transform: translateX(20px); }
       <button class="modal-close" onclick="closeTaskModal()">&times;</button>
     </div>
     <input type="hidden" id="taskId">
+    <!-- ✨ AI 智能一键填表助手 (直接在表单中一句话或粘贴网址全自动补全) -->
+    <div id="aiQuickFillBox" style="background: linear-gradient(135deg, rgba(30, 41, 59, 0.85), rgba(15, 23, 42, 0.95)); border: 1px solid var(--accent); border-radius: 8px; padding: 12px 14px; margin-bottom: 16px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <span style="font-size:0.88rem; font-weight:700; color:var(--accent); display:flex; align-items:center; gap:6px;">
+          <span>✨</span> <span>AI 智能一键填表</span>
+        </span>
+        <span style="font-size:0.75rem; color:var(--text-muted);">输入网址或一句话需求，全表单自动填充</span>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <input type="text" id="aiQuickPrompt" class="form-control" style="font-size:0.85rem;" placeholder="例如: 每天早8点监控 ScienceDirect 锂/钠/碳中和专刊 / 每天早9点签到恩山论坛" onkeydown="if(event.key==='Enter'){event.preventDefault(); quickAiAutoFill(document.getElementById('btnQuickAiFill'));}">
+        <button type="button" class="btn btn-primary" id="btnQuickAiFill" onclick="quickAiAutoFill(this)" style="white-space:nowrap; padding:6px 14px; font-size:0.85rem;">🪄 智能填表</button>
+      </div>
+    </div>
     <div class="form-group">
       <label class="form-label">任务名称 *</label>
       <input type="text" id="taskName" class="form-control" placeholder="例如: ScienceDirect 化学工程专刊监控">
@@ -1341,6 +1354,11 @@ function openAddTaskModal() {
   document.getElementById('taskJitter').value = '0';
   document.getElementById('taskUseHeadless').checked = false;
 
+  const qBox = document.getElementById('aiQuickFillBox');
+  if (qBox) qBox.style.display = 'block';
+  const qPrompt = document.getElementById('aiQuickPrompt');
+  if (qPrompt) qPrompt.value = '';
+
   // 认证模式重置
   document.getElementById('taskAuthMode').value = 'cookie';
   document.getElementById('acLoginUrl').value = '';
@@ -1383,6 +1401,9 @@ function editTask(id) {
   document.getElementById('taskWindowStart').value = t.window_start || '08:00';
   document.getElementById('taskWindowEnd').value = t.window_end || '09:00';
   document.getElementById('taskUseHeadless').checked = !!t.use_headless_browser;
+
+  const qBox = document.getElementById('aiQuickFillBox');
+  if (qBox) qBox.style.display = 'none';
 
   // 认证与账号配置
   const authMode = t.auth_mode || 'cookie';
@@ -1694,6 +1715,71 @@ function closeAiGenModal() {
   document.getElementById('aiGenModal').classList.remove('active');
 }
 
+function applyTaskToForm(t) {
+  if (!t) return;
+  if (t.name) document.getElementById('taskName').value = t.name;
+  if (t.type) document.getElementById('taskType').value = t.type;
+  if (t.schedule_type) document.getElementById('taskScheduleType').value = t.schedule_type;
+  if (t.cron_expr) document.getElementById('taskCron').value = t.cron_expr;
+  if (t.jitter_mins !== undefined) document.getElementById('taskJitter').value = t.jitter_mins;
+  if (t.use_headless_browser !== undefined) document.getElementById('taskUseHeadless').checked = !!t.use_headless_browser;
+
+  handleTaskTypeChange();
+  handleScheduleTypeChange();
+
+  const p = t.params || {};
+  if (t.type === 'ai_digest') {
+    document.getElementById('taskSourceUrl').value = p.source_url || p.url || '';
+    document.getElementById('taskPrompt').value = p.prompt || '';
+    if (p.headers) document.getElementById('taskHeaders').value = JSON.stringify(p.headers, null, 2);
+  } else if (t.type === 'uptime') {
+    document.getElementById('taskUrl').value = p.target_url || p.url || '';
+    document.getElementById('taskMethod').value = 'GET';
+  } else {
+    document.getElementById('taskUrl').value = p.url || '';
+    document.getElementById('taskMethod').value = p.method || 'POST';
+    document.getElementById('taskHeaders').value = p.headers ? JSON.stringify(p.headers, null, 2) : '';
+    document.getElementById('taskBody').value = p.body || '';
+    document.getElementById('taskKeyword').value = p.match_keyword || '';
+  }
+
+  // 检查是否为学术/反爬站点，自动勾选无头浏览器
+  const checkUrl = (t.type === 'ai_digest') ? (p.source_url || '') : (p.url || '');
+  if (/sciencedirect|elsevier|nature|wiley|springer|ieee|researchgate/i.test(checkUrl)) {
+    document.getElementById('taskUseHeadless').checked = true;
+  }
+}
+
+function quickAiAutoFill(btn) {
+  const qPromptInput = document.getElementById('aiQuickPrompt');
+  const prompt = qPromptInput ? qPromptInput.value.trim() : '';
+  if (!prompt) {
+    showToast('⚠️ 请输入网址或需求描述，例如：“每天早上8点监控ScienceDirect专刊”', 4000, 'error');
+    return;
+  }
+
+  const done = setBtnLoading(btn || document.getElementById('btnQuickAiFill'), 'AI 解析填表中...');
+  showToast('🤖 AI 正在深度分析您的需求并自动生成任务参数...', 5000);
+
+  req('/api/tasks/ai_generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt: prompt })
+  }).then(res => {
+    if (res.ok && res.task) {
+      done('✅ 填表完成', 1500);
+      applyTaskToForm(res.task);
+      showToast('🎉 AI 已自动解析并填写所有表单项，请核对后保存！', 5000, 'success');
+    } else {
+      done('❌ 解析失败', 2000);
+      showToast('❌ AI 解析失败: ' + (res.message || '未知错误'), 4000, 'error');
+    }
+  }).catch(err => {
+    done('❌ 异常', 2000);
+    showToast('❌ 请求失败: ' + err.message, 4000, 'error');
+  });
+}
+
 function submitAiGenTask(btn) {
   const genBtn = btn || document.getElementById('btnAiGen');
   const url = document.getElementById('aiGenUrl').value.trim();
@@ -1713,19 +1799,7 @@ function submitAiGenTask(btn) {
       done('✅ 解析成功', 1500);
       closeAiGenModal();
       openAddTaskModal();
-      const t = res.task;
-      document.getElementById('taskName').value = t.name || 'AI 生成任务';
-      document.getElementById('taskType').value = t.type || 'checkin';
-      document.getElementById('taskCron').value = t.cron_expr || '10 8 * * *';
-      document.getElementById('taskJitter').value = t.jitter_mins || 0;
-      document.getElementById('taskUseHeadless').checked = !!t.use_headless_browser;
-      const p = t.params || {};
-      document.getElementById('taskUrl').value = p.url || '';
-      document.getElementById('taskMethod').value = p.method || 'GET';
-      document.getElementById('taskHeaders').value = p.headers ? JSON.stringify(p.headers, null, 2) : '';
-      document.getElementById('taskBody').value = p.body || '';
-      document.getElementById('taskKeyword').value = p.match_keyword || '';
-      handleTaskTypeChange();
+      applyTaskToForm(res.task);
       showToast('🎉 AI 任务配置已成功解析就绪，请核对后保存！', 5000, 'success');
     } else {
       done('❌ 解析失败', 2000);

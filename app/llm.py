@@ -110,27 +110,53 @@ class LLMClient:
         return res if ok else f"诊断生成失败 ({res})"
 
     async def analyze_and_generate_task(self, url: str, prompt: str, curl_text: str) -> Tuple[bool, Any]:
+        url_input = (url or "").strip()
+        prompt_input = (prompt or "").strip()
+        curl_input = (curl_text or "").strip()
+
+        # 智能预提取：若 URL 未单独填写，自动从 prompt 中提取网址
+        if not url_input and prompt_input:
+            m_url = re.search(r'https?://[^\s\'"<>]+', prompt_input)
+            if m_url:
+                url_input = m_url.group(0)
+
         system_instruction = (
-            "你是一个智能任务生成器。用户会提供网址、需求描述或 cURL 命令。\n"
-            "请分析并返回一个标准的 JSON 配置，严格满足以下 JSON 结构：\n"
+            "你是一个全能的自动化任务配置分析与生成专家。\n"
+            "用户会提供目标网址、一句话自然语言需求、或 cURL 请求命令。\n"
+            "你的任务是精准分析用户意图，生成可直接在自动化系统中执行的标准 JSON 任务配置。\n\n"
+            "【任务类型判定规则】：\n"
+            "1. ai_digest（学术订阅、资讯抓取、网页内容提炼）：若用户意图是监控网页、抓取最新资讯、学术专刊追踪、每日新闻概括、公告提取等；\n"
+            "   - params 必须包含: source_url (监控网址), prompt (针对网页内容的提炼与关键词筛选提示词), headers (选填)\n"
+            "   - 若目标包含动态SPA、学术站点(ScienceDirect/Elsevier/Nature等)或反爬防护站，use_headless_browser 设为 true\n"
+            "2. checkin（自动打卡与签到）：若用户意图是每日登录打卡、论坛签到、API 抽奖、点到领取积分等；\n"
+            "   - params 包含: url, method (通常POST/GET), headers (带Cookie/Token), body, match_keyword (成功判定词)\n"
+            "3. uptime（服务存活哨兵）：若用户意图是定时探测服务器、网站健康状态、状态码监控；\n"
+            "   - params 包含: target_url\n"
+            "4. custom_http（通用自定义请求）：其他自定义 HTTP 调用。\n\n"
+            "【调度规则】：\n"
+            "- 根据用户描述的时间生成 cron_expr（基于北京时间，如早8点为 '0 8 * * *'，默认 '10 8 * * *'）\n"
+            "- jitter_mins 防封随机延迟（签到通常 5~15 分钟，学术监控通常 0~5 分钟）\n\n"
+            "【输出格式要求】：\n"
+            "必须且仅输出合法的纯 JSON 文本，严禁包含任何 Markdown 代码块标签（不要出现 ```json 或 ```），格式严格满足：\n"
             "{\n"
-            '  "name": "任务名称",\n'
-            '  "type": "checkin 或 ai_digest 或 uptime",\n'
+            '  "name": "简明扼要的任务名称",\n'
+            '  "type": "ai_digest 或 checkin 或 uptime 或 custom_http",\n'
             '  "schedule_type": "cron",\n'
-            '  "cron_expr": "0 8 * * *",\n'
-            '  "jitter_mins": 5,\n'
-            '  "use_headless_browser": false,\n'
+            '  "cron_expr": "10 8 * * *",\n'
+            '  "jitter_mins": 0,\n'
+            '  "use_headless_browser": true 或 false,\n'
             '  "params": {\n'
-            '    "url": "请求目标URL",\n'
-            '    "method": "POST/GET",\n'
+            '    "source_url": "如果是 ai_digest 则填监控目标URL",\n'
+            '    "prompt": "如果是 ai_digest 则填精炼提取提示词",\n'
+            '    "url": "如果是 checkin/uptime 则填请求目标URL",\n'
+            '    "method": "POST 或 GET",\n'
             '    "headers": {},\n'
             '    "body": "",\n'
             '    "match_keyword": ""\n'
             "  }\n"
-            "}\n"
-            "请只输出合法的 JSON 纯文本，不要包含 Markdown 代码块标记（不要 ```json）。"
+            "}"
         )
-        user_content = f"目标网址: {url}\n需求说明: {prompt}\ncURL命令:\n{curl_text}"
+        user_content = f"目标网址: {url_input}\n需求说明: {prompt_input}\ncURL命令:\n{curl_input}"
         messages = [
             {"role": "system", "content": system_instruction},
             {"role": "user", "content": user_content}
@@ -149,6 +175,28 @@ class LLMClient:
                     lines = lines[:-1]
                 content_clean = "\n".join(lines).strip()
             task_dict = json.loads(content_clean)
+            if not isinstance(task_dict, dict):
+                return False, "大模型返回的不是合法的配置字典"
+
+            # 智能对齐参数字段
+            p = task_dict.setdefault("params", {})
+            ttype = task_dict.get("type", "checkin")
+            if ttype == "ai_digest":
+                if not p.get("source_url") and p.get("url"):
+                    p["source_url"] = p.pop("url")
+                if not p.get("source_url") and url_input:
+                    p["source_url"] = url_input
+                if not p.get("prompt"):
+                    p["prompt"] = prompt_input or "请精炼概括核心重点并按时间倒序归纳："
+            elif ttype in ["checkin", "custom_http"]:
+                if not p.get("url") and p.get("source_url"):
+                    p["url"] = p.pop("source_url")
+                if not p.get("url") and url_input:
+                    p["url"] = url_input
+            elif ttype == "uptime":
+                if not p.get("target_url") and (p.get("url") or url_input):
+                    p["target_url"] = p.get("url") or url_input
+
             return True, task_dict
         except Exception as e:
             return False, f"大模型生成的配置无法解析为合法 JSON ({str(e)}): {content}"
