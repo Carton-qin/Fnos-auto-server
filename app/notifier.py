@@ -142,10 +142,74 @@ class Notifier:
                     "msg_type": "text",
                     "content": {"text": f"{title}\n\n{content}"}
                 }
-            resp = await client.post(webhook, json=payload)
-            return {"ok": resp.status_code == 200, "status": resp.status_code, "msg": resp.text[:100]}
+            resp = await client.post(webhook, json=payload, timeout=12.0)
+            data = resp.json() if resp.status_code == 200 else {}
+            ok = resp.status_code == 200 and (data.get("code") == 0 or data.get("StatusCode") == 0)
+            msg = data.get("msg") or resp.text[:100]
+            if not ok:
+                logger.warning(f"[Notifier] Feishu returned code {data.get('code')}: {msg}")
+                return {"ok": False, "status": resp.status_code, "error": f"飞书错误: {msg}"}
+            return {"ok": True, "status": 200, "msg": msg}
         except Exception as e:
             return {"ok": False, "error": str(e)}
+
+    def _split_wechat_markdown(self, title: str, content: str, max_bytes: int = 3800) -> list:
+        full_text = f"### {title}\n\n{content}"
+        if len(full_text.encode("utf-8")) <= max_bytes:
+            return [full_text]
+
+        paragraphs = content.split("\n\n")
+        chunks = []
+        current_para = []
+        current_bytes = 0
+
+        header_prefix = f"### {title}\n\n"
+        header_bytes = len(header_prefix.encode("utf-8"))
+
+        for p in paragraphs:
+            p_bytes = len((p + "\n\n").encode("utf-8"))
+            if current_bytes + p_bytes > (max_bytes - header_bytes - 60):
+                if current_para:
+                    chunks.append("\n\n".join(current_para))
+                    current_para = []
+                    current_bytes = 0
+                if p_bytes > (max_bytes - header_bytes - 60):
+                    lines = p.split("\n")
+                    line_chunk = []
+                    line_bytes = 0
+                    for l in lines:
+                        lb = len((l + "\n").encode("utf-8"))
+                        if line_bytes + lb > (max_bytes - header_bytes - 60):
+                            if line_chunk:
+                                chunks.append("\n".join(line_chunk))
+                                line_chunk = []
+                                line_bytes = 0
+                        line_chunk.append(l)
+                        line_bytes += lb
+                    if line_chunk:
+                        current_para.append("\n".join(line_chunk))
+                        current_bytes += line_bytes
+                else:
+                    current_para.append(p)
+                    current_bytes += p_bytes
+            else:
+                current_para.append(p)
+                current_bytes += p_bytes
+
+        if current_para:
+            chunks.append("\n\n".join(current_para))
+
+        total = len(chunks)
+        if total > 4:
+            chunks = chunks[:4]
+            chunks[3] += "\n\n> 💡 资讯数量较多，已推送前 4 部分核心要点。完整排版请登录飞牛 Web 控制台查看。"
+            total = 4
+
+        result = []
+        for i, c in enumerate(chunks, 1):
+            suffix = f" (第 {i}/{total} 部分)" if total > 1 else ""
+            result.append(f"### {title}{suffix}\n\n{c}")
+        return result
 
     async def _send_dingtalk(self, client: httpx.AsyncClient, cfg: Dict[str, Any], title: str, content: str) -> Dict[str, Any]:
         webhook = cfg.get("webhook", "").strip()
@@ -164,22 +228,28 @@ class Notifier:
             url = f"{webhook}{sep}timestamp={timestamp}&sign={sign}"
 
         try:
-            is_md = any(m in content for m in ["## ", "### ", "- 🏛️", "- ⏳", "**", "`"])
+            is_md = any(m in content for m in ["## ", "### ", "- 🏛️", "- ⏳", "**", "`", "> "])
             if is_md:
                 payload = {
                     "msgtype": "markdown",
                     "markdown": {
-                        "title": title,
-                        "text": f"### {title}\n\n{content}"
+                        "title": title[:100],
+                        "text": f"### {title}\n\n{content[:20000]}"
                     }
                 }
             else:
                 payload = {
                     "msgtype": "text",
-                    "text": {"content": f"{title}\n\n{content}"}
+                    "text": {"content": f"{title}\n\n{content}"[:4000]}
                 }
-            resp = await client.post(url, json=payload)
-            return {"ok": resp.status_code == 200, "status": resp.status_code, "msg": resp.text[:100]}
+            resp = await client.post(url, json=payload, timeout=12.0)
+            data = resp.json() if resp.status_code == 200 else {}
+            ok = resp.status_code == 200 and data.get("errcode") == 0
+            msg = data.get("errmsg") or resp.text[:100]
+            if not ok:
+                logger.warning(f"[Notifier] DingTalk returned errcode {data.get('errcode')}: {msg}")
+                return {"ok": False, "status": resp.status_code, "error": f"钉钉错误: {msg}"}
+            return {"ok": True, "status": 200, "msg": msg}
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
@@ -188,22 +258,53 @@ class Notifier:
         if not webhook:
             return {"ok": False, "error": "Webhook 为空"}
         try:
-            is_md = any(m in content for m in ["## ", "### ", "- 🏛️", "- ⏳", "**", "`"])
+            is_md = any(m in content for m in ["## ", "### ", "- 🏛️", "- ⏳", "**", "`", "> "])
             if is_md:
-                payload = {
-                    "msgtype": "markdown",
-                    "markdown": {
-                        "content": f"### {title}\n\n{content[:4000]}"
+                import asyncio
+                chunks = self._split_wechat_markdown(title, content, max_bytes=3800)
+                last_res = {}
+                for idx, chunk in enumerate(chunks):
+                    if idx > 0:
+                        await asyncio.sleep(0.3)
+                    payload = {
+                        "msgtype": "markdown",
+                        "markdown": {
+                            "content": chunk
+                        }
                     }
-                }
+                    resp = await client.post(webhook, json=payload, timeout=12.0)
+                    try:
+                        data = resp.json()
+                    except Exception:
+                        data = {}
+                    ok = resp.status_code == 200 and data.get("errcode") == 0
+                    msg = data.get("errmsg") or resp.text[:100]
+                    if not ok:
+                        logger.warning(f"[Notifier] WeChat Work returned errcode {data.get('errcode')}: {msg}")
+                        return {"ok": False, "status": resp.status_code, "errcode": data.get("errcode"), "error": f"企微报错 (errcode={data.get('errcode')}): {msg}"}
+                    last_res = {"ok": True, "status": 200, "msg": msg, "parts": len(chunks)}
+                return last_res
             else:
+                full_text = f"{title}\n\n{content}"
+                if len(full_text.encode("utf-8")) > 2000:
+                    full_text = full_text.encode("utf-8")[:1950].decode("utf-8", "ignore") + "..."
                 payload = {
                     "msgtype": "text",
-                    "text": {"content": f"{title}\n\n{content}"}
+                    "text": {"content": full_text}
                 }
-            resp = await client.post(webhook, json=payload)
-            return {"ok": resp.status_code == 200, "status": resp.status_code, "msg": resp.text[:100]}
+                resp = await client.post(webhook, json=payload, timeout=12.0)
+                try:
+                    data = resp.json()
+                except Exception:
+                    data = {}
+                ok = resp.status_code == 200 and data.get("errcode") == 0
+                msg = data.get("errmsg") or resp.text[:100]
+                if not ok:
+                    logger.warning(f"[Notifier] WeChat Work text returned errcode {data.get('errcode')}: {msg}")
+                    return {"ok": False, "status": resp.status_code, "errcode": data.get("errcode"), "error": f"企微报错 (errcode={data.get('errcode')}): {msg}"}
+                return {"ok": True, "status": 200, "msg": msg}
         except Exception as e:
+            logger.error(f"[Notifier] WeChat Work exception: {e}")
             return {"ok": False, "error": str(e)}
 
     async def _send_bark(self, client: httpx.AsyncClient, cfg: Dict[str, Any], title: str, content: str) -> Dict[str, Any]:
@@ -212,9 +313,17 @@ class Notifier:
         if not key:
             return {"ok": False, "error": "Device Key 为空"}
         try:
-            url = f"{server}/{key}/{urllib.parse.quote(title)}/{urllib.parse.quote(content)}"
-            resp = await client.get(url)
-            return {"ok": resp.status_code == 200, "status": resp.status_code, "msg": resp.text[:100]}
+            url = f"{server}/push"
+            payload = {
+                "body": content[:4000],
+                "title": title[:100],
+                "device_key": key
+            }
+            resp = await client.post(url, json=payload, timeout=10.0)
+            data = resp.json() if resp.status_code == 200 else {}
+            ok = resp.status_code == 200 and data.get("code") == 200
+            msg = data.get("message") or resp.text[:100]
+            return {"ok": ok, "status": resp.status_code, "msg": msg}
         except Exception as e:
             return {"ok": False, "error": str(e)}
 
@@ -222,13 +331,12 @@ class Notifier:
         url = cfg.get("url", "").strip()
         if not url:
             return {"ok": False, "error": "URL 为空"}
-        method = cfg.get("method", "POST").upper()
-        headers = cfg.get("headers", {})
-        tpl = cfg.get("template", '{"title": "{title}", "content": "{content}"}')
-
-        body = tpl.replace("{title}", title).replace("{content}", content.replace("\n", "\\n").replace('"', '\\"'))
         try:
-            resp = await client.request(method, url, headers=headers, content=body.encode("utf-8"))
+            if "{title}" in url or "{content}" in url:
+                target_url = url.replace("{title}", urllib.parse.quote(title[:100])).replace("{content}", urllib.parse.quote(content[:1500]))
+                resp = await client.get(target_url, timeout=10.0)
+            else:
+                resp = await client.post(url, json={"title": title, "content": content}, timeout=10.0)
             return {"ok": resp.status_code == 200, "status": resp.status_code, "msg": resp.text[:100]}
         except Exception as e:
             return {"ok": False, "error": str(e)}

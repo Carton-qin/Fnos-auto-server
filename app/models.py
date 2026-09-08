@@ -23,7 +23,7 @@ class Task(Base):
     jitter_mins = Column(Integer, default=0)
     retry_count = Column(Integer, default=1)
     retry_delay = Column(Integer, default=3)
-    notify_on_success = Column(Boolean, default=False)
+    notify_on_success = Column(Boolean, default=True)
     notify_on_failure = Column(Boolean, default=True)
     ai_diagnose = Column(Boolean, default=True)
     use_headless_browser = Column(Boolean, default=False)  # 智能无头浏览器模式

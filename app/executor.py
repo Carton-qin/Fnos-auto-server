@@ -470,7 +470,7 @@ class TaskExecutor:
                     logger.info(f"[Executor] Failure notification sent for {task_name}: {send_res}")
             else:
                 # 发送成功通知
-                if task.notify_on_success or ttype == "ai_digest":
+                if ttype == "ai_digest" or task.notify_on_success is not False:
                     notify_content = f"任务名称：{task_name}\n执行状态：✅ 成功\n\n{result_msg}"
                     if ttype == "checkin":
                         streak = stats.get("streak", 1)
