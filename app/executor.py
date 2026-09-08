@@ -2,6 +2,7 @@ import json
 import time
 import asyncio
 import logging
+import re
 from typing import Tuple, Dict, Any, Optional
 from datetime import datetime, timedelta
 from sqlalchemy import select
@@ -10,6 +11,80 @@ from app.crawler import crawler, extract_reward, get_cookie_expiration_days, cle
 from app.models import Task, TaskLog, Reward
 
 logger = logging.getLogger("fnos.executor")
+
+def clean_academic_content(raw_text: str) -> str:
+    """针对学术期刊/专刊征稿页面的智能清洗提取器，剥离冗余的学科导航侧边栏与无关噪音"""
+    if not raw_text or len(raw_text.strip()) < 100:
+        return raw_text
+
+    raw_lower = raw_text.lower()
+    
+    # 针对 ScienceDirect / Elsevier / Springer / Wiley 的 calls-for-papers 专刊列表
+    if "calls for papers" in raw_lower or "submission deadline:" in raw_lower:
+        marker = -1
+        for m_str in [
+            "All secondary subject areas selected",
+            "Refine calls for papers by",
+            "Select secondary Subject area",
+            "Filter by keyword"
+        ]:
+            pos = raw_text.find(m_str)
+            if pos != -1:
+                marker = pos + len(m_str)
+                break
+
+        if marker == -1:
+            m_dl = re.search(r"Submission deadline:\s*\d+", raw_text, re.I)
+            if m_dl:
+                marker = max(0, m_dl.start() - 150)
+
+        content = raw_text[marker:] if marker != -1 else raw_text
+
+        items = []
+        blocks = re.split(r"(?=Submission deadline:)", content, flags=re.I)
+        for b in blocks:
+            b_s = b.strip()
+            if "submission deadline:" in b_s.lower():
+                lines = [l.strip() for l in b_s.splitlines() if l.strip()]
+                valid_lines = [
+                    l for l in lines[:7]
+                    if not any(ui in l.lower() for ui in ["view all", "show more", "refine calls", "filter by keyword"])
+                ]
+                if len(valid_lines) >= 2:
+                    items.append("\n".join(valid_lines))
+
+        if items:
+            return f"【学术专刊征稿列表 (共收录 {len(items)} 个专刊，已剔除无关导航噪音)】\n\n" + "\n\n---\n\n".join(items)
+
+    return raw_text
+
+def filter_by_prompt_keywords(text: str, prompt: str) -> str:
+    """根据用户提示词中的学术关键词对专刊条目做精准初筛，极大降低 Token 并规避模型风控误报"""
+    raw_kws = re.findall(r"[\u4e00-\u9fa5]{1,8}|[a-zA-Z0-9\-_]{3,20}", prompt)
+    stop_words = {"提取", "并", "筛选", "专刊", "总结", "分析", "请", "输出", "列出", "关注", "相关", "最新", "信息"}
+    kws = [k for k in raw_kws if k.lower() not in stop_words]
+    
+    # 扩充中英学术对应高频词
+    mapped_en = {
+        "锂": "lithium", "钠": "sodium", "碳中和": "carbon", "低碳": "low-carbon",
+        "电池": "battery", "储能": "energy storage", "氢": "hydrogen", "氨": "ammonia",
+        "催化": "cataly", "分离": "separation", "膜": "membrane", "生物": "bio",
+        "吸附": "adsorption", "材料": "material", "光电": "photo", "转化": "conversion"
+    }
+    for k in list(kws):
+        if k in mapped_en:
+            kws.append(mapped_en[k])
+
+    if "---" in text:
+        blocks = text.split("---")
+        matched = []
+        for b in blocks:
+            b_low = b.lower()
+            if any(k.lower() in b_low for k in kws):
+                matched.append(b.strip())
+        if matched:
+            return f"【已根据任务需求关键词 [{', '.join(kws[:6])}] 精准初筛专刊 (共 {len(matched)} 项)】\n\n" + "\n\n---\n\n".join(matched)
+    return text
 
 class TaskExecutor:
     def __init__(self, db_session_factory, llm_client, notifier):
@@ -467,12 +542,33 @@ class TaskExecutor:
             logger.warning(f"[Executor] Task {task.name} ({task.id}) caught Cloudflare block page: {raw_text[:200]}")
             return False, error_msg, raw_text[:500]
 
+        # 1. 学术正文纯净提纯：剥离冗余的学科导航侧边栏（消除 Toxicology 等易误触发风控的无关词）
+        cleaned_text = clean_academic_content(raw_text)
+
         messages = [
             {"role": "system", "content": "你是一个严谨的信息提炼与科技速报分析师。具有强大的学术期刊专刊检索、动态页面解析与要点提炼能力。"},
-            {"role": "user", "content": f"{prompt}\n\n【抓取内容 (来源模式: {fetch_mode})】\n{raw_text}"}
+            {"role": "user", "content": f"{prompt}\n\n【抓取内容 (来源模式: {fetch_mode})】\n{cleaned_text}"}
         ]
 
         ok, ai_res = await self.llm_client.chat_completion(messages, timeout=60)
+
+        # 2. 智能容灾恢复：若大模型厂商（如通义千问/DashScope）触发了 content-blocked 安全风控拦截
+        if not ok and ("content-blocked" in ai_res.lower() or "data_inspection" in ai_res.lower()):
+            logger.warning(f"[Executor] LLM safety guardrail triggered content-blocked for task {task.name}. Activating keyword-focused recovery...")
+            focused_text = filter_by_prompt_keywords(cleaned_text, prompt)
+            if focused_text and len(focused_text) < len(cleaned_text):
+                recovery_messages = [
+                    {"role": "system", "content": "你是一个严谨的信息提炼与科技速报分析师。请针对下方已初筛聚焦的学术专刊征稿条目进行提炼总结，按截止日期和期刊进行归纳。"},
+                    {"role": "user", "content": f"{prompt}\n\n【初筛聚焦专刊列表】\n{focused_text}"}
+                ]
+                ok_retry, retry_res = await self.llm_client.chat_completion(recovery_messages, timeout=60)
+                if ok_retry:
+                    ok = True
+                    ai_res = f"*(已自动启用专刊精准净化过滤)*\n\n{retry_res}"
+                    logger.info(f"[Executor] Keyword-focused recovery succeeded for task {task.name}!")
+                else:
+                    ai_res = f"模型内容安全审查拦截 (content-blocked): 建议切换为 DeepSeek 官方或 OpenAI 等对学术词汇无风控拦截的厂商接口。"
+
         if ok:
             mode_badge = "🌐 无头浏览器深度渲染" if fetch_mode == "playwright" else "⚡ 极速网络抓取"
             summary_header = f"【信息提炼速报】({mode_badge})\n\n{ai_res}"
