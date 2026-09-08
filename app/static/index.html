@@ -1099,6 +1099,17 @@ function req(url, options = {}) {
       showLoginGateway();
       throw new Error('Unauthorized');
     }
+    const contentType = res.headers.get('content-type') || '';
+    if (!res.ok) {
+      if (contentType.includes('application/json')) {
+        return res.json().then(data => {
+          throw new Error(data.detail || data.message || ('HTTP ' + res.status));
+        });
+      }
+      return res.text().then(txt => {
+        throw new Error('HTTP ' + res.status + ': ' + (txt || '').substring(0, 200));
+      });
+    }
     return res.json();
   });
 }
