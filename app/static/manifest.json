@@ -1,0 +1,21 @@
+{
+  "name": "飞牛私有云自动化中枢",
+  "short_name": "fnOS自动化",
+  "description": "飞牛 NAS 工业级自动化打卡与学术专刊智能订阅服务",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "/static/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/static/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+FROM mcr.microsoft.com/playwright/python:v1.44.0-jammy
+
+# 设置时区与环境变量
+ENV TZ=Asia/Shanghai
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
+
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+WORKDIR /app
+
+# 安装 Python 依赖 (使用阿里云商业高速镜像加速，基础镜像已内置 Chromium 内核无需重复下载)
+COPY requirements.txt .
+RUN pip install --no-cache-dir --default-timeout=100 -r requirements.txt -i https://mirrors.aliyun.com/pypi/simple/ --extra-index-url https://pypi.org/simple/ --trusted-host mirrors.aliyun.com
+
+# 复制工程源码
+COPY . .
+
+# 创建持久化数据目录
+RUN mkdir -p /app/data
+
+# 暴露飞牛专用端口 8836
+EXPOSE 8836
+
+# 启动 FastAPI 服务
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8836"]

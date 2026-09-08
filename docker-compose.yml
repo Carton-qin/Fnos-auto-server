@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  fnos-automation:
+    # 方式 A：如果已在飞牛「本地镜像」导入了 fnos-server-latest.tar.gz，使用本行（最省心）：
+    image: fnos-server:latest
+    # 方式 B：如果直接在线拉取 GitHub 自动构建的镜像，使用本行：
+    # image: ghcr.io/carton-qin/fnos-auto-server:latest
+    # 方式 C：如果希望在本地从 Dockerfile 构建，使用本行：
+    # build: .
+    container_name: fnos-server
+    restart: unless-stopped
+    ports:
+      - "8836:8836"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - TZ=Asia/Shanghai
+      - PYTHONUNBUFFERED=1
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

@@ -1,0 +1,1692 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>飞牛私有云 (fnOS) 自动化中枢控制台</title>
+<meta name="theme-color" content="#0f172a">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" type="image/png" href="/static/icon-192.png">
+<style>
+:root {
+  --bg-primary: #0f172a;
+  --bg-card: #1e293b;
+  --bg-card-hover: #334155;
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --accent: #38bdf8;
+  --accent-glow: rgba(56, 189, 248, 0.2);
+  --success: #10b981;
+  --danger: #ef4444;
+  --warning: #f59e0b;
+  --border: #334155;
+  --radius: 12px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+body { background-color: var(--bg-primary); color: var(--text-main); min-height: 100vh; display: flex; flex-direction: column; }
+header { background: rgba(30, 41, 59, 0.9); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); padding: 14px 24px; position: sticky; top: 0; z-index: 50; display: flex; align-items: center; justify-content: space-between; }
+.logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.15rem; color: #fff; }
+.logo-badge { background: linear-gradient(135deg, #0284c7, #38bdf8); padding: 4px 10px; border-radius: 6px; font-size: 0.8rem; font-weight: 800; letter-spacing: 0.05em; color: #0f172a; }
+.nav-status { display: flex; align-items: center; gap: 10px; font-size: 0.82rem; }
+.badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 9999px; font-weight: 500; font-size: 0.75rem; background: var(--bg-card); border: 1px solid var(--border); }
+.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.dot-green { background-color: var(--success); box-shadow: 0 0 8px var(--success); }
+.dot-red { background-color: var(--danger); box-shadow: 0 0 8px var(--danger); }
+.dot-yellow { background-color: var(--warning); box-shadow: 0 0 8px var(--warning); }
+.tabs-bar { display: flex; gap: 6px; background: var(--bg-card); padding: 6px; border-radius: 10px; margin: 20px 24px 0; border: 1px solid var(--border); overflow-x: auto; }
+.tab-btn { background: transparent; border: none; color: var(--text-muted); padding: 8px 16px; border-radius: 8px; font-size: 0.88rem; font-weight: 600; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+.tab-btn:hover { color: #fff; background: var(--bg-card-hover); }
+.tab-btn.active { background: var(--accent); color: #0f172a; box-shadow: 0 0 12px var(--accent-glow); }
+main { flex: 1; padding: 20px 24px 40px; max-width: 1280px; margin: 0 auto; width: 100%; }
+.tab-pane { display: none; }
+.tab-pane.active { display: block; animation: fadeIn 0.2s ease-in-out; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+.grid-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; position: relative; }
+.card-title { font-size: 0.82rem; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
+.card-value { font-size: 1.55rem; font-weight: 700; color: #fff; margin-bottom: 8px; }
+.progress-bar { width: 100%; height: 6px; background: #334155; border-radius: 9999px; overflow: hidden; margin-top: 8px; }
+.progress-fill { height: 100%; background: var(--accent); border-radius: 9999px; transition: width 0.4s ease; }
+.section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px; }
+.section-title { font-size: 1.15rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 16px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; border: 1px solid transparent; transition: all 0.2s; }
+.btn-primary { background: var(--accent); color: #0f172a; }
+.btn-primary:hover { background: #7dd3fc; }
+.btn-secondary { background: #334155; color: #fff; }
+.btn-secondary:hover { background: #475569; }
+.btn-danger { background: rgba(239, 68, 68, 0.15); color: var(--danger); border-color: rgba(239, 68, 68, 0.3); }
+.btn-danger:hover { background: var(--danger); color: #fff; }
+.btn-success { background: rgba(16, 185, 129, 0.15); color: var(--success); border-color: rgba(16, 185, 129, 0.3); }
+.btn-success:hover { background: var(--success); color: #fff; }
+.btn-sm { padding: 4px 10px; font-size: 0.78rem; }
+.task-list { display: flex; flex-direction: column; gap: 14px; }
+.task-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; display: flex; flex-direction: column; gap: 12px; transition: border-color 0.2s; }
+.task-card:hover { border-color: var(--accent); }
+.task-main-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%; flex-wrap: wrap; }
+.task-info { flex: 1; min-width: 260px; }
+.task-name { font-weight: 700; font-size: 1.05rem; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.task-meta { font-size: 0.82rem; color: var(--text-muted); display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
+.task-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.form-group { margin-bottom: 16px; }
+.form-label { display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; }
+.form-control { width: 100%; background: #0f172a; border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; font-size: 0.9rem; color: #fff; outline: none; transition: border-color 0.2s; }
+.form-control:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-glow); }
+textarea.form-control { resize: vertical; min-height: 85px; font-family: monospace; font-size: 0.82rem; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #334155; transition: .3s; border-radius: 24px; }
+.slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%; }
+input:checked + .slider { background-color: var(--accent); }
+input:checked + .slider:before { transform: translateX(20px); }
+.modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(5px); display: none; align-items: center; justify-content: center; z-index: 100; padding: 16px; }
+.modal-overlay.active { display: flex; }
+.modal-content { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); width: 100%; max-width: 620px; max-height: 90vh; overflow-y: auto; padding: 24px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.6); }
+.modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+.modal-title { font-size: 1.15rem; font-weight: 700; }
+.modal-close { background: transparent; border: none; color: var(--text-muted); font-size: 1.4rem; cursor: pointer; }
+.modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
+.log-item { background: #0f172a; border-radius: 8px; padding: 12px 16px; margin-bottom: 8px; border-left: 4px solid var(--border); font-size: 0.85rem; }
+.log-item.success { border-left-color: var(--success); }
+.log-item.fail { border-left-color: var(--danger); }
+.log-header { display: flex; justify-content: space-between; margin-bottom: 4px; color: var(--text-muted); font-size: 0.75rem; }
+.log-diag { background: rgba(56, 189, 248, 0.1); border: 1px dashed var(--accent); border-radius: 6px; padding: 8px 12px; margin-top: 8px; font-size: 0.8rem; color: #bae6fd; }
+.toast { position: fixed; bottom: 24px; right: 24px; background: var(--bg-card); border: 1px solid var(--border); padding: 12px 20px; border-radius: 8px; font-size: 0.88rem; box-shadow: 0 10px 25px rgba(0,0,0,0.5); z-index: 200; display: none; animation: slideUp 0.3s ease; }
+@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@media (max-width: 640px) { .form-row { grid-template-columns: 1fr; } header { padding: 12px 16px; } main { padding: 16px; } .tabs-bar { margin: 12px 16px 0; } }
+</style>
+</head>
+<body>
+
+<!-- 登录守卫门禁 -->
+<div id="loginGateway" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; z-index:99999; background:#0f172a; align-items:center; justify-content:center; padding:20px;">
+  <div style="background:#1e293b; border:1px solid #334155; border-radius:16px; padding:32px 28px; width:100%; max-width:400px; box-shadow:0 25px 50px -12px rgba(0,0,0,0.6); text-align:center;">
+    <div style="display:inline-flex; align-items:center; justify-content:center; width:56px; height:56px; border-radius:14px; background:linear-gradient(135deg, rgba(2,132,199,0.2), rgba(56,189,248,0.2)); border:1px solid rgba(56,189,248,0.4); margin-bottom:16px; font-size:1.8rem;">
+      🔐
+    </div>
+    <h2 style="font-size:1.25rem; font-weight:700; color:#fff; margin-bottom:6px;">飞牛 NAS 控制台认证</h2>
+    <p style="font-size:0.82rem; color:#94a3b8; margin-bottom:24px;">请输入管理密码以解锁进入系统</p>
+    <div style="margin-bottom:18px; text-align:left;">
+      <label style="display:block; font-size:0.8rem; font-weight:600; color:#94a3b8; margin-bottom:6px;">管理员密码</label>
+      <input type="password" id="gatewayPassword" class="form-control" placeholder="请输入密码 (默认: admin)" style="width:100%; font-size:0.95rem; padding:11px 14px;" onkeydown="if(event.key==='Enter') submitGatewayLogin()">
+      <div id="gatewayError" style="display:none; color:#ef4444; font-size:0.8rem; margin-top:8px; font-weight:500;">❌ 密码错误，请重试</div>
+    </div>
+    <button class="btn btn-primary" id="gatewaySubmitBtn" onclick="submitGatewayLogin()" style="width:100%; height:42px; font-size:0.95rem; font-weight:700; border-radius:8px;">
+      🚀 验证并进入控制台
+    </button>
+  </div>
+</div>
+
+<header>
+  <div class="logo">
+    <div class="logo-badge">fnOS</div>
+    <span>飞牛自动化中枢</span>
+  </div>
+  <div class="nav-status">
+    <span class="badge" id="crawlerStatusBadge"><span class="dot dot-green"></span> 爬虫双模就绪</span>
+    <span class="badge" style="color:var(--accent); font-weight:600;">端口: 8836</span>
+    <button class="btn btn-secondary btn-sm" onclick="logoutSession()" title="退出当前登录会话">🔒 退出</button>
+  </div>
+</header>
+
+<div class="tabs-bar">
+  <button class="tab-btn active" onclick="switchTab('dashboard')">📊 仪表盘</button>
+  <button class="tab-btn" onclick="switchTab('tasks')">⏱️ 任务中心</button>
+  <button class="tab-btn" onclick="switchTab('llm')">🤖 大模型中枢</button>
+  <button class="tab-btn" onclick="switchTab('push')">🔔 消息推送</button>
+  <button class="tab-btn" onclick="switchTab('system')">🖥️ 飞牛与存储</button>
+  <button class="tab-btn" onclick="switchTab('logs')">📜 运行日志</button>
+</div>
+
+<main>
+  <!-- 1. 仪表盘 -->
+  <div class="tab-pane active" id="pane-dashboard">
+    <div class="grid-cards">
+      <div class="card">
+        <div class="card-title">系统内存利用率</div>
+        <div class="card-value" id="dashRam">-- / -- MB</div>
+        <div style="font-size:0.8rem; color:var(--text-muted);" id="dashRamPct">剩余内存: -- MB</div>
+        <div class="progress-bar"><div class="progress-fill" id="dashRamBar" style="width: 0%"></div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">持久存储空间 (/app/data)</div>
+        <div class="card-value" id="dashDisk">-- / -- GB</div>
+        <div style="font-size:0.8rem; color:var(--text-muted);" id="dashDbSize">SQLite数据库: -- KB</div>
+        <div class="progress-bar"><div class="progress-fill" id="dashDiskBar" style="width: 0%"></div></div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="display:flex; justify-content:space-between; align-items:center;">
+          <span>容器运行时长</span>
+          <span style="display:inline-flex; align-items:center; gap:4px; font-size:0.72rem; color:var(--success);"><span class="dot dot-green" style="width:6px; height:6px;"></span>在线</span>
+        </div>
+        <div class="card-value" id="dashUptime">--</div>
+        <div style="font-size:0.8rem; color:var(--text-muted);" id="dashTime">北京时间: 同步中...</div>
+      </div>
+      <div class="card">
+        <div class="card-title">爬虫引擎状态</div>
+        <div class="card-value" id="dashCrawlerMode" style="font-size:1.15rem; color:#38bdf8;">智能双模驱动</div>
+        <div style="font-size:0.8rem; color:var(--text-muted);" id="dashPlaywrightState">Playwright Chromium: 探测中...</div>
+        <div style="margin-top:10px; display:flex; gap:8px;">
+          <button class="btn btn-secondary btn-sm" onclick="triggerWeeklyReportNow()">📋 手动体检周报</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 近 60 天全景战绩热力图 -->
+    <div class="card" style="margin-bottom:24px;">
+      <div class="section-header" style="margin-bottom:12px;">
+        <div class="section-title">📅 近 60 天任务达标热力图</div>
+        <div style="display:flex; align-items:center; gap:12px; font-size:0.78rem; color:var(--text-muted);">
+          <span><span style="display:inline-block; width:10px; height:10px; border-radius:2px; background:rgba(16, 185, 129, 0.8); margin-right:4px;"></span>达标</span>
+          <span><span style="display:inline-block; width:10px; height:10px; border-radius:2px; background:rgba(239, 68, 68, 0.8); margin-right:4px;"></span>异常</span>
+          <span><span style="display:inline-block; width:10px; height:10px; border-radius:2px; background:#1e293b; border:1px solid #334155; margin-right:4px;"></span>无打卡</span>
+        </div>
+      </div>
+      <div id="heatmapContainer" style="display:flex; flex-wrap:wrap; gap:4px; padding:12px; background:#0f172a; border-radius:8px; border:1px solid var(--border); max-height:120px; overflow-y:auto;"></div>
+    </div>
+  </div>
+
+  <!-- 2. 任务中心 -->
+  <div class="tab-pane" id="pane-tasks">
+    <div class="section-header">
+      <div class="section-title">⏱️ 自动化任务管理</div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="openAddTaskModal()">+ 添加任务</button>
+        <button class="btn btn-success" onclick="openLegacyImportModal()">📥 导入旧版 tasks.json</button>
+        <button class="btn btn-secondary" onclick="openAiGenModal()">✨ AI 生成任务</button>
+        <button class="btn btn-secondary" onclick="openHttpDebugger()">🔬 网络调试</button>
+      </div>
+    </div>
+    <div class="task-list" id="tasksContainer">
+      <div style="text-align:center; padding:40px; color:var(--text-muted);">正在加载自动化任务...</div>
+    </div>
+  </div>
+
+  <!-- 3. 大模型中枢 -->
+  <div class="tab-pane" id="pane-llm">
+    <div class="card" style="max-width:800px; margin:0 auto;">
+      <div class="section-title" style="margin-bottom:16px;">🤖 大模型客户端配置 (OpenAI 兼容)</div>
+      <div class="form-group">
+        <label class="form-label">服务商快速预设</label>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="btn btn-secondary btn-sm" onclick="setLlmPreset('deepseek')">DeepSeek 官方</button>
+          <button class="btn btn-secondary btn-sm" onclick="setLlmPreset('qwen')">阿里云百炼 (通义千问)</button>
+          <button class="btn btn-secondary btn-sm" onclick="setLlmPreset('kimi')">Moonshot (Kimi)</button>
+          <button class="btn btn-secondary btn-sm" onclick="setLlmPreset('siliconflow')">SiliconFlow 硅基流动</button>
+          <button class="btn btn-secondary btn-sm" onclick="setLlmPreset('openai')">OpenAI 官方</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">接口基础地址 (Base URL)</label>
+        <input type="text" id="llmBaseUrl" class="form-control" placeholder="例如: https://api.deepseek.com/v1">
+      </div>
+      <div class="form-group">
+        <label class="form-label">API Key</label>
+        <input type="password" id="llmApiKey" class="form-control" placeholder="sk-...">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">模型标识 (Model)</label>
+          <div style="display:flex; gap:8px;">
+            <input type="text" id="llmModel" class="form-control" placeholder="例如: deepseek-chat">
+            <button class="btn btn-secondary btn-sm" onclick="fetchOnlineModels()" style="white-space:nowrap;">探测模型</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">温度 (Temperature): <span id="llmTempText">0.7</span></label>
+          <input type="range" id="llmTemp" min="0" max="1.5" step="0.1" value="0.7" class="form-control" oninput="document.getElementById('llmTempText').innerText=this.value">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">学术专刊抓取文本上限 (KB): <span id="llmMaxKbText">128</span> KB</label>
+        <input type="range" id="llmMaxKb" min="10" max="256" step="10" value="128" class="form-control" oninput="document.getElementById('llmMaxKbText').innerText=this.value">
+        <small style="color:var(--text-muted);">飞牛 NAS 拥有海量内存，支持最高 256KB 网页长文本完整喂给大模型做精准分析</small>
+      </div>
+      <div style="display:flex; justify-content:space-between; margin-top:24px;">
+        <button class="btn btn-secondary" onclick="testLlmConnection()">🧪 发起测试对话</button>
+        <button class="btn btn-primary" onclick="saveLlmConfig()">💾 保存配置</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. 消息推送 -->
+  <div class="tab-pane" id="pane-push">
+    <div class="card" style="max-width:800px; margin:0 auto;">
+      <div class="section-title" style="margin-bottom:16px;">🔔 多通道消息推送中心</div>
+      <!-- PushPlus -->
+      <div style="padding:14px; background:#0f172a; border-radius:8px; margin-bottom:14px; border:1px solid var(--border);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <span style="font-weight:700;">🟢 PushPlus (微信消息推送)</span>
+          <label class="switch"><input type="checkbox" id="pushplusEnabled"><span class="slider"></span></label>
+        </div>
+        <input type="text" id="pushplusToken" class="form-control" placeholder="请输入 PushPlus Token">
+      </div>
+      <!-- 飞书 -->
+      <div style="padding:14px; background:#0f172a; border-radius:8px; margin-bottom:14px; border:1px solid var(--border);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <span style="font-weight:700;">🐦 飞书机器人 Webhook</span>
+          <label class="switch"><input type="checkbox" id="feishuEnabled"><span class="slider"></span></label>
+        </div>
+        <input type="text" id="feishuWebhook" class="form-control" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/...">
+      </div>
+      <!-- 钉钉 -->
+      <div style="padding:14px; background:#0f172a; border-radius:8px; margin-bottom:14px; border:1px solid var(--border);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <span style="font-weight:700;">📌 钉钉自定义机器人 Webhook</span>
+          <label class="switch"><input type="checkbox" id="dingtalkEnabled"><span class="slider"></span></label>
+        </div>
+        <input type="text" id="dingtalkWebhook" class="form-control" placeholder="https://oapi.dingtalk.com/robot/send?access_token=..." style="margin-bottom:8px;">
+        <input type="text" id="dingtalkSecret" class="form-control" placeholder="加签 Secret (选填，以 SEC 开头)">
+      </div>
+      <!-- 企业微信 -->
+      <div style="padding:14px; background:#0f172a; border-radius:8px; margin-bottom:14px; border:1px solid var(--border);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <span style="font-weight:700;">💼 企业微信群机器人</span>
+          <label class="switch"><input type="checkbox" id="wechatWorkEnabled"><span class="slider"></span></label>
+        </div>
+        <input type="text" id="wechatWorkWebhook" class="form-control" placeholder="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=...">
+      </div>
+      <!-- 免打扰策略 -->
+      <div style="padding:14px; background:#0f172a; border-radius:8px; margin-bottom:14px; border:1px solid var(--border);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <span style="font-weight:700;">🌙 夜间免打扰 (DND) 策略</span>
+          <label class="switch"><input type="checkbox" id="dndEnabled"><span class="slider"></span></label>
+        </div>
+        <div class="form-row">
+          <input type="number" id="dndStart" class="form-control" min="0" max="23" placeholder="开始时间 (例如: 23)">
+          <input type="number" id="dndEnd" class="form-control" min="0" max="23" placeholder="结束时间 (例如: 8)">
+        </div>
+      </div>
+      <div style="display:flex; justify-content:space-between; margin-top:20px;">
+        <button class="btn btn-secondary" onclick="testPushNotification()">🔔 发送测试推送</button>
+        <button class="btn btn-primary" onclick="savePushConfig()">💾 保存推送设置</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. 飞牛与存储 -->
+  <div class="tab-pane" id="pane-system">
+    <div class="card" style="max-width:800px; margin:0 auto; margin-bottom:20px;">
+      <div class="section-title" style="margin-bottom:14px;">🖥️ 飞牛 NAS 容器运行环境</div>
+      <table style="width:100%; border-collapse:collapse; font-size:0.88rem;">
+        <tr style="border-bottom:1px solid var(--border);"><td style="padding:10px 0; color:var(--text-muted);">运行架构</td><td id="sysPlatform" style="font-weight:600;">飞牛私有云 (Linux x86_64)</td></tr>
+        <tr style="border-bottom:1px solid var(--border);"><td style="padding:10px 0; color:var(--text-muted);">服务端口</td><td style="font-weight:600; color:var(--accent);">8836 (HTTP / RESTful)</td></tr>
+        <tr style="border-bottom:1px solid var(--border);"><td style="padding:10px 0; color:var(--text-muted);">无头浏览器渲染</td><td id="sysPlaywright" style="font-weight:600;">检测中...</td></tr>
+        <tr style="border-bottom:1px solid var(--border);"><td style="padding:10px 0; color:var(--text-muted);">数据持久化卷</td><td style="font-weight:600;">/app/data (映射至宿主机 ./data)</td></tr>
+        <tr style="border-bottom:1px solid var(--border);"><td style="padding:10px 0; color:var(--text-muted);">外网连通性</td><td><button class="btn btn-secondary btn-sm" onclick="testNetPing()" id="netPingBtn">测试延迟</button> <span id="netPingVal" style="margin-left:8px; font-size:0.82rem;"></span></td></tr>
+      </table>
+    </div>
+
+    <!-- 备份与迁移 -->
+    <div class="card" style="max-width:800px; margin:0 auto; margin-bottom:20px;">
+      <div class="section-title" style="margin-bottom:14px;">📦 全景数据备份与迁移</div>
+      <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:14px;">将飞牛自动化中枢的所有配置、打卡记录、任务参数导出为独立的 JSON 备份包：</p>
+      <div style="display:flex; gap:10px;">
+        <a href="/api/backup/export" target="_blank" class="btn btn-secondary">⬇️ 导出全量备份 JSON</a>
+        <button class="btn btn-secondary" onclick="triggerRestoreBackup()">⬆️ 恢复备份</button>
+        <input type="file" id="backupFileInput" style="display:none;" onchange="handleBackupFile(this)">
+      </div>
+    </div>
+
+    <!-- 管理员密码 -->
+    <div class="card" style="max-width:800px; margin:0 auto;">
+      <div class="section-title" style="margin-bottom:14px;">🔐 管理员访问控制</div>
+      <div class="form-group">
+        <label class="form-label">修改控制台密码</label>
+        <div style="display:flex; gap:10px;">
+          <input type="password" id="newAdminPwd" class="form-control" placeholder="输入新管理密码">
+          <button class="btn btn-primary" onclick="changeAdminPassword()">更新密码</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. 运行日志 -->
+  <div class="tab-pane" id="pane-logs">
+    <div class="section-header">
+      <div class="section-title">📜 运行审计日志</div>
+      <div style="display:flex; gap:8px;">
+        <select id="logCategoryFilter" class="form-control" style="width:auto; padding:6px 12px;" onchange="loadLogs()">
+          <option value="all">全部日志</option>
+          <option value="task">任务打卡</option>
+          <option value="system">系统安全</option>
+        </select>
+        <a href="/api/logs/download" target="_blank" class="btn btn-secondary btn-sm">⬇️ 下载完整日志</a>
+        <button class="btn btn-danger btn-sm" onclick="clearLogs()">🗑️ 清空日志</button>
+      </div>
+    </div>
+    <div id="logsContainer">
+      <div style="text-align:center; padding:40px; color:var(--text-muted);">正在加载日志...</div>
+    </div>
+  </div>
+</main>
+
+<!-- 任务添加/编辑弹窗 -->
+<div class="modal-overlay" id="taskModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <div class="modal-title" id="taskModalTitle">添加自动化任务</div>
+      <button class="modal-close" onclick="closeTaskModal()">&times;</button>
+    </div>
+    <input type="hidden" id="taskId">
+    <div class="form-group">
+      <label class="form-label">任务名称 *</label>
+      <input type="text" id="taskName" class="form-control" placeholder="例如: ScienceDirect 化学工程专刊监控">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">任务类型</label>
+        <select id="taskType" class="form-control" onchange="handleTaskTypeChange()">
+          <option value="checkin">网站自动签到 (HTTP 打卡)</option>
+          <option value="ai_digest">学术期刊/文章 AI 订阅 (大模型提炼)</option>
+          <option value="uptime">服务存活哨兵 (状态码监控)</option>
+          <option value="custom_http">通用自定义 HTTP 请求</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">调度方式</label>
+        <select id="taskScheduleType" class="form-control" onchange="handleScheduleTypeChange()">
+          <option value="cron">Cron 表达式 (例如: 10 8 * * *)</option>
+          <option value="window">每日随机时间窗口 (例如: 08:00~09:30)</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row" id="cronRow">
+      <div class="form-group">
+        <label class="form-label">Cron 表达式</label>
+        <input type="text" id="taskCron" class="form-control" placeholder="分 时 日 月 周 (例如: 10 8 * * *)" value="10 8 * * *">
+      </div>
+      <div class="form-group">
+        <label class="form-label">防封随机延迟 (分钟)</label>
+        <input type="number" id="taskJitter" class="form-control" min="0" max="60" value="0" placeholder="0 表示准点触发">
+      </div>
+    </div>
+    <div class="form-row" id="windowRow" style="display:none;">
+      <div class="form-group">
+        <label class="form-label">窗口起始时间 (HH:MM)</label>
+        <input type="text" id="taskWindowStart" class="form-control" placeholder="08:00" value="08:00">
+      </div>
+      <div class="form-group">
+        <label class="form-label">窗口结束时间 (HH:MM)</label>
+        <input type="text" id="taskWindowEnd" class="form-control" placeholder="09:00" value="09:00">
+      </div>
+    </div>
+
+    <!-- 飞牛 NAS 特有：无头浏览器模式开关 -->
+    <div style="padding:12px 14px; background:#0f172a; border-radius:8px; margin-bottom:16px; border:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+      <div>
+        <div style="font-weight:700; font-size:0.88rem; color:#fff;">🌐 强制使用 Playwright 无头 Chromium 渲染</div>
+        <div style="font-size:0.75rem; color:var(--text-muted); margin-top:2px;">适用于 ScienceDirect、Elsevier 等受 Cloudflare 拦截或 React SPA 动态渲染的学术网页</div>
+      </div>
+      <label class="switch"><input type="checkbox" id="taskUseHeadless"><span class="slider"></span></label>
+    </div>
+
+    <!-- 认证模式选择 (Cookie vs 账号密码自动托管) -->
+    <div class="form-group">
+      <label class="form-label">🔐 认证模式</label>
+      <select id="taskAuthMode" class="form-control" onchange="handleAuthModeChange()">
+        <option value="cookie">常规凭据模式 (手动填写 Cookie / Headers)</option>
+        <option value="playwright_account">🤖 Playwright 账号密码自动登录托管 (免手动抓取Cookie，支持验证码自动破解)</option>
+      </select>
+    </div>
+
+    <!-- 账号密码托管专用表单 -->
+    <div id="accountAuthFields" style="display:none; padding:16px; background:#0b1120; border-radius:8px; border:1px solid var(--accent); margin-bottom:16px;">
+      <div style="font-size:0.9rem; font-weight:700; color:var(--accent); margin-bottom:12px; display:flex; align-items:center; gap:6px;">
+        <span>🔑 账号自动登录与会话持久化配置 (StorageState)</span>
+      </div>
+      <div class="form-group">
+        <label class="form-label">登录页 URL *</label>
+        <input type="text" id="acLoginUrl" class="form-control" placeholder="例如: https://example.com/login">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">账号 / 用户名 / 手机号 *</label>
+          <input type="text" id="acUsername" class="form-control" placeholder="用户名或登录邮箱">
+        </div>
+        <div class="form-group">
+          <label class="form-label">登录密码 (Fernet 强加密保存) *</label>
+          <input type="password" id="acPassword" class="form-control" placeholder="输入新密码，或保持 ****** 不改">
+        </div>
+      </div>
+
+      <div style="margin-top:8px;">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="toggleAcAdvanced()" id="acAdvBtn">
+          ⚙️ 验证码自动识别与自定义选择器 (选填) ▼
+        </button>
+        <div id="acAdvancedSettings" style="display:none; margin-top:12px; padding:14px; background:#1e293b; border-radius:8px; border:1px solid var(--border);">
+          <div style="padding-bottom:10px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px dashed var(--border); margin-bottom:12px;">
+            <div>
+              <div style="font-weight:600; font-size:0.84rem; color:#fff;">⚡ 自动破解验证码 (ddddocr 本地神经网络 + 视觉大模型回退)</div>
+              <div style="font-size:0.75rem; color:var(--text-muted);">自动截图目标验证码并识别字母/数字，自动回填输入框</div>
+            </div>
+            <label class="switch"><input type="checkbox" id="acAutoSolveCaptcha" checked><span class="slider"></span></label>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">账号输入框选择器</label>
+              <input type="text" id="acUserSelector" class="form-control" placeholder='input[name="username"], input[type="email"], #username'>
+            </div>
+            <div class="form-group">
+              <label class="form-label">密码输入框选择器</label>
+              <input type="text" id="acPwdSelector" class="form-control" placeholder='input[name="password"], input[type="password"], #password'>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">登录提交按钮选择器</label>
+              <input type="text" id="acSubmitSelector" class="form-control" placeholder='button[type="submit"], input[type="submit"], .btn-login'>
+            </div>
+            <div class="form-group">
+              <label class="form-label">登录后等待时间 (毫秒)</label>
+              <input type="number" id="acWaitMs" class="form-control" value="3000" placeholder="默认 3000">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">验证码图片元素选择器</label>
+              <input type="text" id="acCaptchaImgSelector" class="form-control" placeholder='例如: #captcha-img, img.verify-code'>
+            </div>
+            <div class="form-group">
+              <label class="form-label">验证码输入框选择器</label>
+              <input type="text" id="acCaptchaInputSelector" class="form-control" placeholder='例如: input[name="captcha"], #verify_code'>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="cookieTipMsg" style="display:none; padding:10px 14px; background:rgba(56,189,248,0.1); border-radius:8px; border:1px dashed var(--accent); margin-bottom:14px; font-size:0.8rem; color:#bae6fd;">
+      💡 <b>提示：</b>已启用账密自动托管。每次任务执行时系统将自动装载 <code>StorageState</code> 会话（Cookies 与 LocalStorage），无需在下方手动维护 Cookie！
+    </div>
+
+    <!-- 动态表单字段 -->
+    <div id="checkinFields">
+      <div class="form-group">
+        <label class="form-label">请求目标 URL *</label>
+        <input type="text" id="taskUrl" class="form-control" placeholder="https://...">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">请求方法</label>
+          <select id="taskMethod" class="form-control">
+            <option value="POST">POST</option>
+            <option value="GET">GET</option>
+            <option value="PUT">PUT</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">成功判定关键字 (选填)</label>
+          <input type="text" id="taskKeyword" class="form-control" placeholder="例如: success 或 签到成功">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">请求头 Headers (JSON 格式)</label>
+        <textarea id="taskHeaders" class="form-control" placeholder='{"Cookie": "...", "Content-Type": "application/json"}'></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">请求体 Body (选填)</label>
+        <textarea id="taskBody" class="form-control" placeholder="{}"></textarea>
+      </div>
+    </div>
+
+    <div id="aiDigestFields" style="display:none;">
+      <div class="form-group">
+        <label class="form-label">订阅源网址 (Source URL)</label>
+        <input type="text" id="taskSourceUrl" class="form-control" placeholder="https://www.sciencedirect.com/browse/calls-for-papers?subject=chemical-engineering">
+      </div>
+      <div class="form-group">
+        <label class="form-label">AI 提炼与筛选提示词 (Prompt)</label>
+        <textarea id="taskPrompt" class="form-control" rows="4" placeholder="请对抓取的网页专刊列表进行筛选，提取出与'分子筛/气体分离/碳捕集'相关的专刊名称、截止日期和目标期刊..."></textarea>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeTaskModal()">取消</button>
+      <button class="btn btn-primary" onclick="saveTask()">保存并同步</button>
+    </div>
+  </div>
+</div>
+
+<!-- 导入旧版 tasks.json 弹窗 -->
+<div class="modal-overlay" id="legacyImportModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <div class="modal-title">📥 导入旧版 tasks.json (一键无缝平滑迁移)</div>
+      <button class="modal-close" onclick="closeLegacyImportModal()">&times;</button>
+    </div>
+    <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:14px;">
+      请将原 ESP32 开发板导出的 <code>tasks.json</code> 文本内容粘贴到下方，系统将自动解析转换为飞牛 SQLite 关系型数据模型并无缝注入定时调度器：
+    </p>
+    <div class="form-group">
+      <textarea id="legacyJsonInput" class="form-control" rows="12" placeholder='[{"id": "...", "name": "...", "type": "checkin", ...}]'></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeLegacyImportModal()">取消</button>
+      <button class="btn btn-success" onclick="submitLegacyImport()">确认导入并入库</button>
+    </div>
+  </div>
+</div>
+
+<!-- AI 生成任务弹窗 -->
+<div class="modal-overlay" id="aiGenModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <div class="modal-title">✨ AI 智能解析与生成任务</div>
+      <button class="modal-close" onclick="closeAiGenModal()">&times;</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">目标网址</label>
+      <input type="text" id="aiGenUrl" class="form-control" placeholder="https://...">
+    </div>
+    <div class="form-group">
+      <label class="form-label">需求说明或自然语言描述</label>
+      <input type="text" id="aiGenPrompt" class="form-control" placeholder="例如: 每天早晨8点签到获取积分">
+    </div>
+    <div class="form-group">
+      <label class="form-label">或者直接粘贴 cURL 命令</label>
+      <textarea id="aiGenCurl" class="form-control" rows="5" placeholder="curl 'https://api.example.com/checkin' -H 'Cookie: ...'"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeAiGenModal()">取消</button>
+      <button class="btn btn-primary" onclick="submitAiGenTask()">开始智能解析</button>
+    </div>
+  </div>
+</div>
+
+<!-- HTTP 调试工具弹窗 -->
+<div class="modal-overlay" id="httpDebugModal">
+  <div class="modal-content" style="max-width:700px;">
+    <div class="modal-header">
+      <div class="modal-title">🔬 在线网络请求调试工具 (Mini Postman)</div>
+      <button class="modal-close" onclick="closeHttpDebugger()">&times;</button>
+    </div>
+    <div class="form-row">
+      <div class="form-group" style="flex:0 0 100px;">
+        <select id="debugMethod" class="form-control">
+          <option value="GET">GET</option>
+          <option value="POST">POST</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <input type="text" id="debugUrl" class="form-control" placeholder="https://...">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">请求头 Headers (JSON 格式)</label>
+      <textarea id="debugHeaders" class="form-control" rows="3" placeholder='{"User-Agent": "..."}'></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">请求体 Body</label>
+      <textarea id="debugBody" class="form-control" rows="3"></textarea>
+    </div>
+    <div style="display:flex; justify-content:space-between; margin-bottom:12px;">
+      <button class="btn btn-primary" onclick="sendHttpDebug()">🚀 发送请求</button>
+      <span id="debugLatency" style="font-size:0.82rem; color:var(--text-muted); align-self:center;"></span>
+    </div>
+    <div class="form-group">
+      <label class="form-label">响应内容预览</label>
+      <textarea id="debugResponse" class="form-control" rows="8" readonly placeholder="等待执行..."></textarea>
+<!-- 远程截屏与扫码弹窗 -->
+<div class="modal-overlay" id="loginScreenModal">
+  <div class="modal-content" style="max-width:760px;">
+    <div class="modal-header">
+      <div class="modal-title" id="loginScreenTitle">📷 登录页面快照与扫码窗口</div>
+      <button class="modal-close" onclick="closeLoginScreenModal()">&times;</button>
+    </div>
+    <div style="font-size:0.85rem; color:var(--text-muted); margin-bottom:12px;">
+      用于查看目标站点的实时登录页面。若目标站点需要<b>微信扫码关注登录</b>或<b>滑动拼图/图形验证码</b>，可在此处查看或扫码，然后点击「🔑 触发重新登录」。
+    </div>
+    <div style="text-align:center; background:#0f172a; border-radius:8px; border:1px solid var(--border); padding:12px; min-height:280px; display:flex; align-items:center; justify-content:center; overflow:hidden;">
+      <img id="loginScreenImg" src="" alt="登录页面快照" style="max-width:100%; max-height:480px; border-radius:6px; box-shadow:0 4px 12px rgba(0,0,0,0.5); display:none;">
+      <div id="loginScreenLoading" style="color:var(--text-muted); font-size:0.9rem;">
+        <span class="dot dot-yellow"></span> 正在渲染并截取登录页面，请稍候...
+      </div>
+    </div>
+    <div class="modal-footer" style="display:flex; justify-content:space-between; align-items:center;">
+      <span id="loginScreenTimestamp" style="font-size:0.75rem; color:var(--text-muted);"></span>
+      <div style="display:flex; gap:8px;">
+        <button class="btn btn-secondary" onclick="refreshLoginScreen()">🔄 刷新截屏</button>
+        <button class="btn btn-primary" id="loginScreenReloginBtn" onclick="doReloginFromModal()">🔑 触发重新登录</button>
+        <button class="btn btn-secondary" onclick="closeLoginScreenModal()">关闭</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let authToken = localStorage.getItem('fnos_token') || '';
+let tasksList = [];
+let openCalendars = new Set();
+
+function showToast(msg, duration = 3000) {
+  const t = document.getElementById('toast');
+  t.innerText = msg;
+  t.style.display = 'block';
+  setTimeout(() => { t.style.display = 'none'; }, duration);
+}
+
+function req(url, options = {}) {
+  options.headers = options.headers || {};
+  if (authToken) {
+    options.headers['Authorization'] = 'Bearer ' + authToken;
+  }
+  return fetch(url, options).then(res => {
+    if (res.status === 401) {
+      localStorage.removeItem('fnos_token');
+      authToken = '';
+      showLoginGateway();
+      throw new Error('Unauthorized');
+    }
+    return res.json();
+  });
+}
+
+function showLoginGateway() {
+  document.getElementById('loginGateway').style.display = 'flex';
+}
+
+function submitGatewayLogin() {
+  const pwd = document.getElementById('gatewayPassword').value.trim();
+  if (!pwd) return;
+  fetch('/api/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password: pwd })
+  }).then(res => res.json()).then(data => {
+    if (data.ok) {
+      authToken = data.token;
+      localStorage.setItem('fnos_token', authToken);
+      document.getElementById('loginGateway').style.display = 'none';
+      showToast('登录成功！');
+      refreshAll();
+    } else {
+      document.getElementById('gatewayError').style.display = 'block';
+      document.getElementById('gatewayError').innerText = data.detail || '密码错误';
+    }
+  }).catch(() => {
+    document.getElementById('gatewayError').style.display = 'block';
+  });
+}
+
+function logoutSession() {
+  localStorage.removeItem('fnos_token');
+  authToken = '';
+  location.reload();
+}
+
+function switchTab(tabId) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('pane-' + tabId).classList.add('active');
+  if (tabId === 'tasks') loadTasks();
+  if (tabId === 'llm') loadLlmConfig();
+  if (tabId === 'push') loadPushConfig();
+  if (tabId === 'logs') loadLogs();
+  if (tabId === 'dashboard') loadDashboard();
+  if (tabId === 'system') refreshStatus();
+}
+
+function refreshAll() {
+  refreshStatus();
+  loadTasks();
+  loadDashboard();
+}
+
+function formatUptime(seconds) {
+  if (seconds < 60) return seconds + ' 秒';
+  const d = Math.floor(seconds / 86400);
+  const h = Math.floor((seconds % 86400) / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  let str = '';
+  if (d > 0) str += d + '天 ';
+  if (h > 0 || d > 0) str += h + '小时 ';
+  str += m + '分钟 ' + s + '秒';
+  return str;
+}
+
+function refreshStatus() {
+  req('/api/status').then(res => {
+    if (!res.ok) return;
+    const s = res.status;
+    const mem = s.memory || {};
+    document.getElementById('dashRam').innerText = mem.used_mb + ' / ' + mem.total_mb + ' MB';
+    document.getElementById('dashRamPct').innerText = '剩余内存: ' + mem.free_mb + ' MB (利用率 ' + mem.percent + '%)';
+    document.getElementById('dashRamBar').style.width = mem.percent + '%';
+
+    const disk = s.disk || {};
+    document.getElementById('dashDisk').innerText = disk.free_gb + ' / ' + disk.total_gb + ' GB';
+    document.getElementById('dashDbSize').innerText = 'SQLite数据库: ' + s.db_size_kb + ' KB';
+    const diskPct = Math.round(((disk.total_gb - disk.free_gb) / disk.total_gb) * 100);
+    document.getElementById('dashDiskBar').style.width = diskPct + '%';
+
+    document.getElementById('dashUptime').innerText = formatUptime(s.uptime_seconds);
+    document.getElementById('dashTime').innerText = '北京时间: ' + s.time;
+
+    const crawler = s.crawler || {};
+    const pwOk = crawler.playwright_available;
+    document.getElementById('dashPlaywrightState').innerText = pwOk ? 'Playwright Chromium: 就绪 ✅' : 'Playwright Chromium: 未检测到 ⚠️';
+    document.getElementById('dashPlaywrightState').style.color = pwOk ? 'var(--success)' : 'var(--warning)';
+
+    const badge = document.getElementById('crawlerStatusBadge');
+    badge.innerHTML = '<span class="dot ' + (pwOk ? 'dot-green' : 'dot-yellow') + '"></span> ' + (pwOk ? '智能爬虫双模就绪' : '轻量HTTP爬虫');
+
+    if (document.getElementById('sysPlaywright')) {
+      document.getElementById('sysPlaywright').innerHTML = pwOk ? '<span style="color:var(--success);">✅ 已装载 (支持无头渲染与防爬突破)</span>' : '<span style="color:var(--warning);">⚠️ 未装载 (仅支持基础 HTTP)</span>';
+    }
+  }).catch(e => console.error(e));
+}
+
+function loadDashboard() {
+  req('/api/tasks/heatmap').then(res => {
+    if (!res.ok) return;
+    const hm = res.heatmap || {};
+    const container = document.getElementById('heatmapContainer');
+    let html = '';
+    Object.keys(hm).sort().forEach(date => {
+      const entry = hm[date];
+      const succ = entry.success || 0;
+      const fail = entry.fail || 0;
+      let bg = '#1e293b';
+      let border = '1px solid #334155';
+      let title = date + ': 无记录';
+      if (succ > 0 && fail === 0) {
+        bg = 'rgba(16, 185, 129, 0.75)';
+        title = date + ': 达标 ' + succ + ' 次';
+      } else if (fail > 0) {
+        bg = 'rgba(239, 68, 68, 0.75)';
+        title = date + ': 异常 ' + fail + ' 次, 成功 ' + succ + ' 次';
+      }
+      html += '<div style="width:14px; height:14px; border-radius:2px; background:' + bg + '; border:' + border + '; cursor:pointer;" title="' + title + '"></div>';
+    });
+    container.innerHTML = html;
+  });
+}
+
+function loadTasks() {
+  req('/api/tasks').then(res => {
+    if (!res.ok) return;
+    tasksList = res.tasks || [];
+    renderTasks();
+  });
+}
+
+function renderTasks() {
+  const c = document.getElementById('tasksContainer');
+  if (tasksList.length === 0) {
+    c.innerHTML = '<div style="text-align:center; padding:40px; color:var(--text-muted); background:var(--bg-card); border-radius:var(--radius); border:1px dashed var(--border);">📋 当前无自动化任务，点击上方「+ 添加任务」或「📥 导入旧版 tasks.json」！</div>';
+    return;
+  }
+  let html = '';
+  tasksList.forEach(t => {
+    const typeMap = { 'checkin': '自动打卡', 'ai_digest': '学术 AI 订阅', 'uptime': '服务哨兵', 'custom_http': 'HTTP 请求' };
+    const schedDesc = t.schedule_type === 'cron' ? ('Cron: ' + t.cron_expr) : ('窗口: ' + t.window_start + '~' + t.window_end + (t.today_target_time ? (' (今日目标 ' + t.today_target_time + ')') : ''));
+    const statusBadge = t.last_status === 'success' ? '<span style="color:var(--success); font-weight:600;">✅ 成功</span>' : (t.last_status === 'fail' ? '<span style="color:var(--danger); font-weight:600;">❌ 失败</span>' : '⚪ 未运行');
+
+    let authBadge = '';
+    let sessionBadge = '';
+    if (t.auth_mode === 'playwright_account') {
+      authBadge = ' <span class="badge" style="background:rgba(147,51,234,0.15); color:#c084fc; border-color:rgba(147,51,234,0.3);" title="Playwright 账号密码自动托管">🤖 账密托管</span>';
+      if (t.session_exists) {
+        sessionBadge = ' <span class="badge" style="background:rgba(16,185,129,0.15); color:var(--success); border-color:rgba(16,185,129,0.3);" title="会话文件 StorageState 正常就绪 (更新于 ' + (t.session_updated_at || '近期') + ')">🟢 会话已就绪</span>';
+      } else {
+        sessionBadge = ' <span class="badge" style="background:rgba(245,158,11,0.15); color:var(--warning); border-color:rgba(245,158,11,0.3);" title="尚未生成 StorageState 会话，点击「🔑 重新登录」或首次运行时将自动登录">🟡 会话未生成</span>';
+      }
+    }
+
+    let cookieBadge = '';
+    if (t.auth_mode !== 'playwright_account') {
+      if (t.cookie_status === 'valid') {
+        cookieBadge = ' <span class="badge" style="background:rgba(16,185,129,0.15); color:var(--success); border-color:rgba(16,185,129,0.3);">🟢 凭据剩' + t.cookie_days + '天</span>';
+      } else if (t.cookie_status === 'expiring_soon') {
+        cookieBadge = ' <span class="badge" style="background:rgba(245,158,11,0.15); color:var(--warning); border-color:rgba(245,158,11,0.3);">🟡 凭据仅剩' + t.cookie_days + '天</span>';
+      } else if (t.cookie_status === 'expired') {
+        cookieBadge = ' <span class="badge" style="background:rgba(239,68,68,0.15); color:var(--danger); border-color:rgba(239,68,68,0.3);">🔴 凭据已过期</span>';
+      }
+    }
+
+    let pwBadge = t.use_headless_browser ? ' <span class="badge" style="background:rgba(56,189,248,0.15); color:var(--accent); border-color:rgba(56,189,248,0.3);" title="强制 Playwright Chromium 深度渲染">🌐 无头浏览器</span>' : '';
+    let isTripped = t.stats && t.stats.circuit_tripped;
+    let circuitBadge = isTripped ? ' <span class="badge" style="background:rgba(239,68,68,0.2); color:#ef4444; border:1px solid #ef4444;">🛡️ 熔断保护中</span>' : '';
+
+    html += '<div class="task-card">';
+    html += '  <div class="task-main-row">';
+    html += '    <div class="task-info">';
+    html += '      <div class="task-name">' + t.name + ' <span class="badge">' + (typeMap[t.type] || t.type) + '</span>' + authBadge + sessionBadge + cookieBadge + pwBadge + circuitBadge + '</div>';
+    html += '      <div class="task-meta">';
+    html += '        <span>⏱️ ' + schedDesc + (t.jitter_mins ? (' <b style="color:var(--accent);">+🎲' + t.jitter_mins + 'm</b>') : '') + '</span>';
+    html += '        <span>状态: ' + statusBadge + '</span>';
+    html += '        <span>上次运行: ' + (t.last_run || '从未') + '</span>';
+    html += '      </div>';
+    if (t.last_result) {
+      html += '      <div style="font-size:0.78rem; color:var(--text-muted); margin-top:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">结果: ' + t.last_result + '</div>';
+    }
+    html += '    </div>';
+    html += '    <div class="task-actions">';
+    html += '      <label class="switch"><input type="checkbox" ' + (t.enabled ? 'checked' : '') + ' onchange="toggleTaskEnable(\'' + t.id + '\')"><span class="slider"></span></label>';
+    if (isTripped) {
+      html += '      <button class="btn btn-sm" onclick="resetTaskCircuit(\'' + t.id + '\')" style="background:rgba(245,158,11,0.2); color:#f59e0b; border:1px solid rgba(245,158,11,0.5);">🔄 恢复调度</button>';
+    }
+    if (t.auth_mode === 'playwright_account') {
+      html += '      <button class="btn btn-secondary btn-sm" onclick="reloginTaskNow(\'' + t.id + '\')" title="使用配置的账号密码自动登录并刷新 StorageState 会话">🔑 重新登录</button>';
+      html += '      <button class="btn btn-secondary btn-sm" onclick="showLoginScreenModal(\'' + t.id + '\', \'' + (t.name || '').replace(/'/g, "\\'") + '\')" title="查看实时登录页截图或扫码">📷 扫码/截屏</button>';
+    }
+    html += '      <button class="btn btn-secondary btn-sm" onclick="runTaskNow(\'' + t.id + '\')">⚡ 运行</button>';
+    html += '      <button class="btn btn-secondary btn-sm" onclick="editTask(\'' + t.id + '\')">✏️ 编辑</button>';
+    html += '      <button class="btn btn-danger btn-sm" onclick="deleteTask(\'' + t.id + '\')">🗑️</button>';
+    html += '    </div>';
+    html += '  </div>';
+
+    // 独立打卡日历卡片
+    const stats = t.stats || {};
+    const streak = stats.streak || 0;
+    const totalSucc = stats.total_success || 0;
+    const totalRew = stats.total_reward || 0;
+    const rewUnit = stats.reward_unit || '';
+    const isCalOpen = openCalendars.has(t.id);
+
+    html += '  <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; padding-top:10px; border-top:1px dashed var(--border);">';
+    html += '    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">';
+    html += '      <span class="badge" style="background:rgba(249,115,22,0.12); color:#f97316; border-color:rgba(249,115,22,0.3); font-size:0.75rem;">🔥 连续 <b>' + streak + '</b> 天</span>';
+    html += '      <span class="badge" style="background:rgba(16,185,129,0.12); color:var(--success); border-color:rgba(16,185,129,0.3); font-size:0.75rem;">🎯 累计 <b>' + totalSucc + '</b> 次</span>';
+    if (totalRew > 0) {
+      html += '      <span class="badge" style="background:rgba(234,179,8,0.12); color:#eab308; border-color:rgba(234,179,8,0.3); font-size:0.75rem;">🍗 斩获 <b>' + totalRew + '</b> ' + rewUnit + '</span>';
+    }
+    html += '    </div>';
+    html += '    <button class="btn btn-secondary btn-sm" onclick="toggleTaskCalendar(\'' + t.id + '\')">📅 30天打卡战绩 ' + (isCalOpen ? '▲' : '▼') + '</button>';
+    html += '  </div>';
+    html += '  <div id="task-cal-' + t.id + '" style="display:' + (isCalOpen ? 'block' : 'none') + '; margin-top:4px; padding:12px; background:#0f172a; border-radius:8px; border:1px solid var(--border);"></div>';
+
+    html += '</div>';
+  });
+  c.innerHTML = html;
+
+  tasksList.forEach(t => {
+    if (openCalendars.has(t.id)) renderTaskCalendar(t);
+  });
+}
+
+function toggleTaskCalendar(taskId) {
+  if (openCalendars.has(taskId)) {
+    openCalendars.delete(taskId);
+  } else {
+    openCalendars.add(taskId);
+  }
+  renderTasks();
+}
+
+function renderTaskCalendar(task) {
+  const el = document.getElementById('task-cal-' + task.id);
+  if (!el) return;
+  const stats = task.stats || {};
+  const history = stats.history || {};
+  let cells = '';
+  const now = new Date();
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(now.getTime() - i * 86400000);
+    const dStr = d.toISOString().split('T')[0];
+    const dayNum = dStr.substring(8);
+    const entry = history[dStr];
+    let bg = '#1e293b';
+    let icon = '-';
+    let tip = dStr + ': 未打卡';
+    if (entry) {
+      if (entry.status === 'success') {
+        bg = 'rgba(16, 185, 129, 0.2)';
+        icon = entry.reward ? ('+' + entry.reward) : '✔';
+        tip = dStr + ': 成功 ' + (entry.reward ? ('(+' + entry.reward + ')') : '');
+      } else {
+        bg = 'rgba(239, 68, 68, 0.2)';
+        icon = '✖';
+        tip = dStr + ': 失败';
+      }
+    }
+    cells += '<div style="flex:1 1 calc(10% - 6px); min-width:28px; max-width:36px; height:36px; background:' + bg + '; border:1px solid #334155; border-radius:6px; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor:pointer;" title="' + tip + '">';
+    cells += '  <span style="font-size:0.6rem; color:#94a3b8;">' + dayNum + '</span>';
+    cells += '  <span style="font-size:0.68rem; font-weight:700;">' + icon + '</span>';
+    cells += '</div>';
+  }
+  el.innerHTML = '<div style="display:flex; flex-wrap:wrap; gap:5px;">' + cells + '</div>';
+}
+
+function toggleTaskEnable(id) {
+  req('/api/tasks/' + id + '/toggle', { method: 'POST' }).then(() => {
+    showToast('任务状态已更新');
+    loadTasks();
+  });
+}
+
+function resetTaskCircuit(id) {
+  req('/api/tasks/' + id + '/reset_circuit', { method: 'POST' }).then(res => {
+    showToast(res.message || '熔断已恢复');
+    loadTasks();
+  });
+}
+
+function runTaskNow(id) {
+  showToast('正在启动执行...');
+  req('/api/tasks/' + id + '/run', { method: 'POST' }).then(res => {
+    showToast((res.success ? '✅ 执行成功: ' : '❌ 执行失败: ') + res.result, 4000);
+    loadTasks();
+  });
+}
+
+function deleteTask(id) {
+  if (!confirm('确定删除此自动化任务吗？')) return;
+  req('/api/tasks/' + id, { method: 'DELETE' }).then(() => {
+    showToast('任务已删除');
+    loadTasks();
+  });
+}
+
+// 弹窗表单操作
+function toggleAcAdvanced() {
+  const el = document.getElementById('acAdvancedSettings');
+  const btn = document.getElementById('acAdvBtn');
+  if (el.style.display === 'none') {
+    el.style.display = 'block';
+    btn.innerText = '⚙️ 验证码自动识别与自定义选择器 ▲';
+  } else {
+    el.style.display = 'none';
+    btn.innerText = '⚙️ 验证码自动识别与自定义选择器 (选填) ▼';
+  }
+}
+
+function handleAuthModeChange() {
+  const mode = document.getElementById('taskAuthMode').value;
+  const acFields = document.getElementById('accountAuthFields');
+  const tipMsg = document.getElementById('cookieTipMsg');
+  if (mode === 'playwright_account') {
+    acFields.style.display = 'block';
+    document.getElementById('taskUseHeadless').checked = true;
+    if (tipMsg) tipMsg.style.display = 'block';
+  } else {
+    acFields.style.display = 'none';
+    if (tipMsg) tipMsg.style.display = 'none';
+  }
+}
+
+function openAddTaskModal() {
+  document.getElementById('taskId').value = '';
+  document.getElementById('taskModalTitle').innerText = '添加自动化任务';
+  document.getElementById('taskName').value = '';
+  document.getElementById('taskType').value = 'checkin';
+  document.getElementById('taskScheduleType').value = 'cron';
+  document.getElementById('taskCron').value = '10 8 * * *';
+  document.getElementById('taskJitter').value = '0';
+  document.getElementById('taskUseHeadless').checked = false;
+
+  // 认证模式重置
+  document.getElementById('taskAuthMode').value = 'cookie';
+  document.getElementById('acLoginUrl').value = '';
+  document.getElementById('acUsername').value = '';
+  document.getElementById('acPassword').value = '';
+  document.getElementById('acUserSelector').value = '';
+  document.getElementById('acPwdSelector').value = '';
+  document.getElementById('acSubmitSelector').value = '';
+  document.getElementById('acWaitMs').value = '3000';
+  document.getElementById('acCaptchaImgSelector').value = '';
+  document.getElementById('acCaptchaInputSelector').value = '';
+  document.getElementById('acAutoSolveCaptcha').checked = true;
+  document.getElementById('acAdvancedSettings').style.display = 'none';
+  document.getElementById('acAdvBtn').innerText = '⚙️ 验证码自动识别与自定义选择器 (选填) ▼';
+
+  document.getElementById('taskUrl').value = '';
+  document.getElementById('taskMethod').value = 'POST';
+  document.getElementById('taskKeyword').value = '';
+  document.getElementById('taskHeaders').value = '';
+  document.getElementById('taskBody').value = '';
+  document.getElementById('taskSourceUrl').value = '';
+  document.getElementById('taskPrompt').value = '';
+
+  handleTaskTypeChange();
+  handleScheduleTypeChange();
+  handleAuthModeChange();
+  document.getElementById('taskModal').classList.add('active');
+}
+
+function editTask(id) {
+  const t = tasksList.find(x => x.id === id);
+  if (!t) return;
+  document.getElementById('taskId').value = t.id;
+  document.getElementById('taskModalTitle').innerText = '编辑自动化任务';
+  document.getElementById('taskName').value = t.name || '';
+  document.getElementById('taskType').value = t.type || 'checkin';
+  document.getElementById('taskScheduleType').value = t.schedule_type || 'cron';
+  document.getElementById('taskCron').value = t.cron_expr || '10 8 * * *';
+  document.getElementById('taskJitter').value = t.jitter_mins || 0;
+  document.getElementById('taskWindowStart').value = t.window_start || '08:00';
+  document.getElementById('taskWindowEnd').value = t.window_end || '09:00';
+  document.getElementById('taskUseHeadless').checked = !!t.use_headless_browser;
+
+  // 认证与账号配置
+  const authMode = t.auth_mode || 'cookie';
+  document.getElementById('taskAuthMode').value = authMode;
+  const ac = t.account_config || {};
+  document.getElementById('acLoginUrl').value = ac.login_url || '';
+  document.getElementById('acUsername').value = ac.username || '';
+  document.getElementById('acPassword').value = ac.password || '';
+  document.getElementById('acUserSelector').value = ac.user_selector || '';
+  document.getElementById('acPwdSelector').value = ac.pwd_selector || '';
+  document.getElementById('acSubmitSelector').value = ac.submit_selector || '';
+  document.getElementById('acWaitMs').value = ac.wait_after_login_ms || 3000;
+  document.getElementById('acCaptchaImgSelector').value = ac.captcha_img_selector || '';
+  document.getElementById('acCaptchaInputSelector').value = ac.captcha_input_selector || '';
+  document.getElementById('acAutoSolveCaptcha').checked = ac.auto_solve_captcha !== false;
+  document.getElementById('acAdvancedSettings').style.display = 'none';
+  document.getElementById('acAdvBtn').innerText = '⚙️ 验证码自动识别与自定义选择器 (选填) ▼';
+
+  const p = t.params || {};
+  document.getElementById('taskUrl').value = p.url || '';
+  document.getElementById('taskMethod').value = p.method || 'POST';
+  document.getElementById('taskKeyword').value = p.match_keyword || '';
+  document.getElementById('taskHeaders').value = p.headers ? JSON.stringify(p.headers, null, 2) : '';
+  document.getElementById('taskBody').value = p.body || '';
+  document.getElementById('taskSourceUrl').value = p.source_url || '';
+  document.getElementById('taskPrompt').value = p.prompt || '';
+
+  handleTaskTypeChange();
+  handleScheduleTypeChange();
+  handleAuthModeChange();
+  document.getElementById('taskModal').classList.add('active');
+}
+
+function closeTaskModal() {
+  document.getElementById('taskModal').classList.remove('active');
+}
+
+function handleTaskTypeChange() {
+  const type = document.getElementById('taskType').value;
+  document.getElementById('checkinFields').style.display = (type === 'ai_digest') ? 'none' : 'block';
+  document.getElementById('aiDigestFields').style.display = (type === 'ai_digest') ? 'block' : 'none';
+}
+
+function handleScheduleTypeChange() {
+  const stype = document.getElementById('taskScheduleType').value;
+  document.getElementById('cronRow').style.display = (stype === 'cron') ? 'grid' : 'none';
+  document.getElementById('windowRow').style.display = (stype === 'window') ? 'grid' : 'none';
+}
+
+function saveTask() {
+  const id = document.getElementById('taskId').value;
+  const name = document.getElementById('taskName').value.trim();
+  if (!name) return alert('请输入任务名称');
+
+  const type = document.getElementById('taskType').value;
+  const stype = document.getElementById('taskScheduleType').value;
+  const authMode = document.getElementById('taskAuthMode').value;
+
+  let accountConfig = undefined;
+  if (authMode === 'playwright_account') {
+    const lUrl = document.getElementById('acLoginUrl').value.trim();
+    const uName = document.getElementById('acUsername').value.trim();
+    const uPwd = document.getElementById('acPassword').value.trim();
+    if (!lUrl) return alert('请输入登录页 URL');
+    if (!uName) return alert('请输入账号/用户名');
+    if (!id && !uPwd) return alert('新增账密托管任务必须填写密码');
+
+    accountConfig = {
+      login_url: lUrl,
+      username: uName,
+      password: uPwd || '******',
+      user_selector: document.getElementById('acUserSelector').value.trim() || undefined,
+      pwd_selector: document.getElementById('acPwdSelector').value.trim() || undefined,
+      submit_selector: document.getElementById('acSubmitSelector').value.trim() || undefined,
+      captcha_img_selector: document.getElementById('acCaptchaImgSelector').value.trim() || undefined,
+      captcha_input_selector: document.getElementById('acCaptchaInputSelector').value.trim() || undefined,
+      auto_solve_captcha: document.getElementById('acAutoSolveCaptcha').checked,
+      wait_after_login_ms: parseInt(document.getElementById('acWaitMs').value) || 3000
+    };
+  }
+
+  let headers = {};
+  try {
+    const hText = document.getElementById('taskHeaders').value.trim();
+    if (hText) headers = JSON.parse(hText);
+  } catch (e) {
+    return alert('Headers 必须为合法的 JSON 格式');
+  }
+
+  let reqUrl = document.getElementById('taskUrl').value.trim();
+  // 账密托管模式下，如果请求URL留空，可默认沿用登录页或目标地址
+  if (!reqUrl && authMode === 'playwright_account' && accountConfig && accountConfig.login_url) {
+    reqUrl = accountConfig.login_url;
+  }
+
+  const params = (type === 'ai_digest') ? {
+    source_url: document.getElementById('taskSourceUrl').value.trim(),
+    prompt: document.getElementById('taskPrompt').value.trim(),
+    headers: headers
+  } : {
+    url: reqUrl,
+    method: document.getElementById('taskMethod').value,
+    match_keyword: document.getElementById('taskKeyword').value.trim(),
+    headers: headers,
+    body: document.getElementById('taskBody').value
+  };
+
+  const payload = {
+    id: id || undefined,
+    name: name,
+    type: type,
+    schedule_type: stype,
+    cron_expr: document.getElementById('taskCron').value.trim(),
+    window_start: document.getElementById('taskWindowStart').value.trim(),
+    window_end: document.getElementById('taskWindowEnd').value.trim(),
+    jitter_mins: parseInt(document.getElementById('taskJitter').value) || 0,
+    use_headless_browser: authMode === 'playwright_account' ? true : document.getElementById('taskUseHeadless').checked,
+    auth_mode: authMode,
+    account_config: accountConfig,
+    params: params
+  };
+
+  req('/api/tasks', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  }).then(res => {
+    if (res.ok) {
+      showToast('任务保存成功！');
+      closeTaskModal();
+      loadTasks();
+    } else {
+      alert('保存失败: ' + (res.detail || '未知错误'));
+    }
+  });
+}
+
+// 自动登录与实时快照交互
+let currentScreenTaskId = '';
+
+function reloginTaskNow(taskId) {
+  showToast('正在启动 Playwright 自动登录与验证码识别...');
+  req('/api/tasks/' + taskId + '/relogin', { method: 'POST' }).then(res => {
+    if (res.ok) {
+      showToast('✅ 自动登录成功，会话 StorageState 已就绪！', 4000);
+      loadTasks();
+    } else {
+      alert('❌ 自动登录失败: ' + (res.message || '未知错误'));
+    }
+  }).catch(err => {
+    alert('请求失败: ' + err.message);
+  });
+}
+
+function showLoginScreenModal(taskId, taskName) {
+  currentScreenTaskId = taskId;
+  document.getElementById('loginScreenTitle').innerText = '📷 登录页面快照与扫码 - ' + (taskName || taskId);
+  document.getElementById('loginScreenModal').classList.add('active');
+  refreshLoginScreen();
+}
+
+function refreshLoginScreen() {
+  if (!currentScreenTaskId) return;
+  const img = document.getElementById('loginScreenImg');
+  const loading = document.getElementById('loginScreenLoading');
+  const timeEl = document.getElementById('loginScreenTimestamp');
+  img.style.display = 'none';
+  loading.style.display = 'block';
+  loading.innerHTML = '<span class="dot dot-yellow"></span> 正在渲染并截取登录页面快照...';
+
+  const ts = Date.now();
+  const screenUrl = '/api/tasks/' + currentScreenTaskId + '/login_screen?t=' + ts;
+  
+  fetch(screenUrl, {
+    headers: authToken ? { 'Authorization': 'Bearer ' + authToken } : {}
+  }).then(res => {
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return res.blob();
+  }).then(blob => {
+    const objectUrl = URL.createObjectURL(blob);
+    img.src = objectUrl;
+    img.onload = () => {
+      loading.style.display = 'none';
+      img.style.display = 'block';
+      timeEl.innerText = '快照生成时间: ' + new Date().toLocaleTimeString();
+    };
+  }).catch(err => {
+    loading.innerHTML = '<span style="color:var(--danger);">❌ 获取快照失败: ' + err.message + ' (请确认已配置登录页 URL 且目标服务可访问)</span>';
+  });
+}
+
+function doReloginFromModal() {
+  if (!currentScreenTaskId) return;
+  const btn = document.getElementById('loginScreenReloginBtn');
+  btn.disabled = true;
+  btn.innerText = '正在登录...';
+  req('/api/tasks/' + currentScreenTaskId + '/relogin', { method: 'POST' }).then(res => {
+    btn.disabled = false;
+    btn.innerText = '🔑 触发重新登录';
+    if (res.ok) {
+      showToast('✅ 登录成功，会话已更新！');
+      refreshLoginScreen();
+      loadTasks();
+    } else {
+      alert('❌ 登录返回: ' + (res.message || '未知错误'));
+      refreshLoginScreen();
+    }
+  }).catch(err => {
+    btn.disabled = false;
+    btn.innerText = '🔑 触发重新登录';
+    alert('网络异常: ' + err.message);
+  });
+}
+
+function closeLoginScreenModal() {
+  document.getElementById('loginScreenModal').classList.remove('active');
+  const img = document.getElementById('loginScreenImg');
+  img.src = '';
+  currentScreenTaskId = '';
+}
+
+// 导入旧版 tasks.json
+function openLegacyImportModal() {
+  document.getElementById('legacyJsonInput').value = '';
+  document.getElementById('legacyImportModal').classList.add('active');
+}
+
+function closeLegacyImportModal() {
+  document.getElementById('legacyImportModal').classList.remove('active');
+}
+
+function submitLegacyImport() {
+  const txt = document.getElementById('legacyJsonInput').value.trim();
+  if (!txt) return alert('请粘贴 tasks.json 内容');
+  let tasks = [];
+  try {
+    tasks = JSON.parse(txt);
+    if (!Array.isArray(tasks)) return alert('tasks.json 顶层必须为任务数组 []');
+  } catch (e) {
+    return alert('JSON 语法解析错误: ' + e.message);
+  }
+
+  req('/api/tasks/import-legacy', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tasks: tasks })
+  }).then(res => {
+    if (res.ok) {
+      showToast(res.message || '导入成功！');
+      closeLegacyImportModal();
+      loadTasks();
+    } else {
+      alert('导入失败: ' + (res.detail || '未知错误'));
+    }
+  });
+}
+
+// AI 生成任务
+function openAiGenModal() {
+  document.getElementById('aiGenUrl').value = '';
+  document.getElementById('aiGenPrompt').value = '';
+  document.getElementById('aiGenCurl').value = '';
+  document.getElementById('aiGenModal').classList.add('active');
+}
+
+function closeAiGenModal() {
+  document.getElementById('aiGenModal').classList.remove('active');
+}
+
+function submitAiGenTask() {
+  const url = document.getElementById('aiGenUrl').value.trim();
+  const prompt = document.getElementById('aiGenPrompt').value.trim();
+  const curl = document.getElementById('aiGenCurl').value.trim();
+  if (!url && !prompt && !curl) return alert('请至少填写网址、需求或 cURL');
+
+  showToast('AI 正在深度解析接口结构...');
+  req('/api/tasks/ai_generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url: url, prompt: prompt, curl: curl })
+  }).then(res => {
+    if (res.ok && res.task) {
+      closeAiGenModal();
+      openAddTaskModal();
+      const t = res.task;
+      document.getElementById('taskName').value = t.name || 'AI 生成任务';
+      document.getElementById('taskType').value = t.type || 'checkin';
+      document.getElementById('taskCron').value = t.cron_expr || '10 8 * * *';
+      document.getElementById('taskJitter').value = t.jitter_mins || 0;
+      document.getElementById('taskUseHeadless').checked = !!t.use_headless_browser;
+      const p = t.params || {};
+      document.getElementById('taskUrl').value = p.url || '';
+      document.getElementById('taskMethod').value = p.method || 'GET';
+      document.getElementById('taskHeaders').value = p.headers ? JSON.stringify(p.headers, null, 2) : '';
+      document.getElementById('taskBody').value = p.body || '';
+      document.getElementById('taskKeyword').value = p.match_keyword || '';
+      handleTaskTypeChange();
+      showToast('AI 任务配置已解析就绪，请核对后保存！', 4000);
+    } else {
+      alert('AI 解析失败: ' + (res.message || '未知错误'));
+    }
+  });
+}
+
+// HTTP 调试器
+function openHttpDebugger() {
+  document.getElementById('debugUrl').value = '';
+  document.getElementById('debugHeaders').value = '';
+  document.getElementById('debugBody').value = '';
+  document.getElementById('debugResponse').value = '';
+  document.getElementById('httpDebugModal').classList.add('active');
+}
+
+function closeHttpDebugger() {
+  document.getElementById('httpDebugModal').classList.remove('active');
+}
+
+function sendHttpDebug() {
+  const url = document.getElementById('debugUrl').value.trim();
+  if (!url) return alert('请输入调试目标 URL');
+
+  let headers = {};
+  try {
+    const h = document.getElementById('debugHeaders').value.trim();
+    if (h) headers = JSON.parse(h);
+  } catch (e) {
+    return alert('Headers 必须为 JSON');
+  }
+
+  showToast('正在发送测试请求...');
+  req('/api/http/debug', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      method: document.getElementById('debugMethod').value,
+      url: url,
+      headers: headers,
+      body: document.getElementById('debugBody').value
+    })
+  }).then(res => {
+    document.getElementById('debugLatency').innerText = '耗时: ' + res.latency_ms + 'ms | 状态: HTTP ' + res.status_code + ' | 引擎: ' + res.mode_used;
+    document.getElementById('debugResponse').value = res.body || res.error || '空响应';
+  });
+}
+
+// 大模型配置
+function loadLlmConfig() {
+  req('/api/llm/config').then(res => {
+    if (!res.ok) return;
+    const cfg = res.config || {};
+    document.getElementById('llmBaseUrl').value = cfg.base_url || '';
+    document.getElementById('llmApiKey').value = cfg.api_key || '';
+    document.getElementById('llmModel').value = cfg.model || 'deepseek-chat';
+    document.getElementById('llmTemp').value = cfg.temperature || 0.7;
+    document.getElementById('llmTempText').innerText = cfg.temperature || 0.7;
+    document.getElementById('llmMaxKb').value = cfg.digest_max_kb || 128;
+    document.getElementById('llmMaxKbText').innerText = cfg.digest_max_kb || 128;
+  });
+}
+
+function setLlmPreset(provider) {
+  if (provider === 'deepseek') {
+    document.getElementById('llmBaseUrl').value = 'https://api.deepseek.com/v1';
+    document.getElementById('llmModel').value = 'deepseek-chat';
+  } else if (provider === 'qwen') {
+    document.getElementById('llmBaseUrl').value = 'https://dashscope.aliyuncs.com/compatible-mode/v1';
+    document.getElementById('llmModel').value = 'qwen-plus';
+  } else if (provider === 'kimi') {
+    document.getElementById('llmBaseUrl').value = 'https://api.moonshot.cn/v1';
+    document.getElementById('llmModel').value = 'moonshot-v1-8k';
+  } else if (provider === 'siliconflow') {
+    document.getElementById('llmBaseUrl').value = 'https://api.siliconflow.cn/v1';
+    document.getElementById('llmModel').value = 'deepseek-ai/DeepSeek-V3';
+  } else if (provider === 'openai') {
+    document.getElementById('llmBaseUrl').value = 'https://api.openai.com/v1';
+    document.getElementById('llmModel').value = 'gpt-4o-mini';
+  }
+}
+
+function fetchOnlineModels() {
+  const url = document.getElementById('llmBaseUrl').value.trim();
+  const key = document.getElementById('llmApiKey').value.trim();
+  if (!url || !key) return alert('请先输入 Base URL 和 API Key');
+
+  showToast('正在探测模型列表...');
+  req('/api/llm/models', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ base_url: url, api_key: key })
+  }).then(res => {
+    if (res.ok && res.models.length > 0) {
+      const selected = prompt('探测成功，发现 ' + res.models.length + ' 个可用模型，请输入要启用的模型名称：\n\n' + res.models.slice(0, 15).join('\n') + (res.models.length > 15 ? '\n...' : ''), res.models[0]);
+      if (selected) document.getElementById('llmModel').value = selected.trim();
+    } else {
+      alert('探测失败: ' + (res.error || '未返回有效模型'));
+    }
+  });
+}
+
+function testLlmConnection() {
+  const p = prompt('请输入测试对话内容：', '你好，请用一句话回答：1+1等于几？');
+  if (!p) return;
+  showToast('正在调用大模型...');
+  req('/api/llm/test', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt: p })
+  }).then(res => {
+    if (res.ok) {
+      alert('大模型响应结果：\n\n' + res.reply);
+    } else {
+      alert('测试失败: ' + res.reply);
+    }
+  });
+}
+
+function saveLlmConfig() {
+  const payload = {
+    base_url: document.getElementById('llmBaseUrl').value.trim(),
+    api_key: document.getElementById('llmApiKey').value.trim(),
+    model: document.getElementById('llmModel').value.trim(),
+    temperature: parseFloat(document.getElementById('llmTemp').value) || 0.7,
+    digest_max_kb: parseInt(document.getElementById('llmMaxKb').value) || 128
+  };
+  req('/api/llm/config', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  }).then(res => {
+    if (res.ok) showToast('大模型配置已保存！');
+  });
+}
+
+// 推送配置
+function loadPushConfig() {
+  req('/api/push/config').then(res => {
+    if (!res.ok) return;
+    const c = res.config || {};
+    const pp = c.pushplus || {};
+    document.getElementById('pushplusEnabled').checked = !!pp.enabled;
+    document.getElementById('pushplusToken').value = pp.token || '';
+
+    const fs = c.feishu || {};
+    document.getElementById('feishuEnabled').checked = !!fs.enabled;
+    document.getElementById('feishuWebhook').value = fs.webhook || '';
+
+    const dt = c.dingtalk || {};
+    document.getElementById('dingtalkEnabled').checked = !!dt.enabled;
+    document.getElementById('dingtalkWebhook').value = dt.webhook || '';
+    document.getElementById('dingtalkSecret').value = dt.secret || '';
+
+    const wx = c.wechat_work || {};
+    document.getElementById('wechatWorkEnabled').checked = !!wx.enabled;
+    document.getElementById('wechatWorkWebhook').value = wx.webhook || '';
+
+    const pol = c.policy || {};
+    document.getElementById('dndEnabled').checked = !!pol.dnd_enabled;
+    document.getElementById('dndStart').value = pol.dnd_start !== undefined ? pol.dnd_start : 23;
+    document.getElementById('dndEnd').value = pol.dnd_end !== undefined ? pol.dnd_end : 8;
+  });
+}
+
+function savePushConfig() {
+  const payload = {
+    policy: {
+      mode: 'all',
+      dnd_enabled: document.getElementById('dndEnabled').checked,
+      dnd_start: parseInt(document.getElementById('dndStart').value) || 23,
+      dnd_end: parseInt(document.getElementById('dndEnd').value) || 8
+    },
+    pushplus: {
+      enabled: document.getElementById('pushplusEnabled').checked,
+      token: document.getElementById('pushplusToken').value.trim()
+    },
+    feishu: {
+      enabled: document.getElementById('feishuEnabled').checked,
+      webhook: document.getElementById('feishuWebhook').value.trim()
+    },
+    dingtalk: {
+      enabled: document.getElementById('dingtalkEnabled').checked,
+      webhook: document.getElementById('dingtalkWebhook').value.trim(),
+      secret: document.getElementById('dingtalkSecret').value.trim()
+    },
+    wechat_work: {
+      enabled: document.getElementById('wechatWorkEnabled').checked,
+      webhook: document.getElementById('wechatWorkWebhook').value.trim()
+    }
+  };
+  req('/api/push/config', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  }).then(res => {
+    if (res.ok) showToast('推送配置已保存！');
+  });
+}
+
+function testPushNotification() {
+  showToast('正在发送测试推送...');
+  req('/api/push/test', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ channel: 'all' })
+  }).then(res => {
+    if (res.ok) {
+      alert('测试结果已返回：\n' + JSON.stringify(res.results, null, 2));
+    }
+  });
+}
+
+// 运行日志
+function loadLogs() {
+  const cat = document.getElementById('logCategoryFilter').value;
+  req('/api/logs?category=' + cat).then(res => {
+    if (!res.ok) return;
+    const logs = res.logs || [];
+    const container = document.getElementById('logsContainer');
+    if (logs.length === 0) {
+      container.innerHTML = '<div style="text-align:center; padding:40px; color:var(--text-muted);">暂无运行日志</div>';
+      return;
+    }
+    let html = '';
+    logs.forEach(l => {
+      const isSucc = l.status === 'success';
+      html += '<div class="log-item ' + (isSucc ? 'success' : 'fail') + '">';
+      html += '  <div class="log-header">';
+      html += '    <span>[' + l.time + '] ' + (l.task_name || l.task_id || 'SYSTEM') + '</span>';
+      html += '    <span>' + (isSucc ? '<b style="color:var(--success);">SUCCESS</b>' : '<b style="color:var(--danger);">FAIL</b>') + '</span>';
+      html += '  </div>';
+      html += '  <div>' + l.message + '</div>';
+      if (l.ai_diag) {
+        html += '  <div class="log-diag">🤖 <b>AI 诊断建议:</b> ' + l.ai_diag + '</div>';
+      }
+      html += '</div>';
+    });
+    container.innerHTML = html;
+  });
+}
+
+function clearLogs() {
+  if (!confirm('确定清空所有审计日志吗？')) return;
+  req('/api/logs', { method: 'DELETE' }).then(() => {
+    showToast('日志已清空');
+    loadLogs();
+  });
+}
+
+function testNetPing() {
+  const el = document.getElementById('netPingVal');
+  el.innerText = '正在测速...';
+  req('/api/system/net_ping').then(res => {
+    if (res.online) {
+      el.innerHTML = '<span style="color:var(--success);">✅ 连通正常 (' + res.latency_ms + ' ms)</span>';
+    } else {
+      el.innerHTML = '<span style="color:var(--danger);">❌ 连通受阻 (' + (res.error || '超时') + ')</span>';
+    }
+  });
+}
+
+function triggerWeeklyReportNow() {
+  showToast('正在生成健康周报...');
+  req('/api/system/trigger_report', { method: 'POST' }).then(res => {
+    if (res.ok) alert('周报生成完毕并推送：\n\n' + res.report);
+  });
+}
+
+function triggerRestoreBackup() {
+  document.getElementById('backupFileInput').click();
+}
+
+function handleBackupFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!confirm('确定将全量配置与任务恢复覆盖至当前系统吗？')) return;
+      req('/api/backup/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      }).then(res => {
+        if (res.ok) {
+          alert('数据恢复成功！');
+          location.reload();
+        }
+      });
+    } catch (err) {
+      alert('备份文件格式不合法');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function changeAdminPassword() {
+  const pwd = document.getElementById('newAdminPwd').value.trim();
+  if (!pwd) return alert('密码不能为空');
+  req('/api/system/password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ enabled: true, password: pwd })
+  }).then(res => {
+    if (res.ok) {
+      authToken = pwd;
+      localStorage.setItem('fnos_token', pwd);
+      showToast('管理密码修改成功！');
+      document.getElementById('newAdminPwd').value = '';
+    }
+  });
+}
+
+// 页面初始化检查
+window.addEventListener('DOMContentLoaded', () => {
+  req('/api/auth/verify').then(res => {
+    if (res.auth_enabled && !res.authenticated) {
+      showLoginGateway();
+    } else {
+      refreshAll();
+    }
+  }).catch(() => {
+    showLoginGateway();
+  });
+  setInterval(refreshStatus, 10000);
+});
+</script>
+</body>
+</html>
