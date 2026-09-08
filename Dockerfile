@@ -5,7 +5,8 @@ ENV TZ=Asia/Shanghai
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
 
-RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+RUN if [ -f /usr/share/zoneinfo/$TZ ]; then ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone; fi
+
 
 WORKDIR /app
 

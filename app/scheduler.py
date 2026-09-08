@@ -10,7 +10,9 @@ from app.config import BEIJING_TZ, format_now, get_now_beijing
 from app.models import Task, TaskLog
 
 logger = logging.getLogger("fnos.scheduler")
-SHANGHAI_TZ = pytz.timezone("Asia/Shanghai")
+# 使用原生 UTC+8 规范化时区对象，杜绝轻量化 Docker 容器中缺少系统 tzdata 导致崩溃的问题
+SHANGHAI_TZ = BEIJING_TZ
+
 
 class TaskScheduler:
     def __init__(self, db_session_factory, executor, notifier):
