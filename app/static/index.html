@@ -86,15 +86,25 @@ input:checked + .slider:before { transform: translateX(20px); }
 .modal-title { font-size: 1.15rem; font-weight: 700; }
 .modal-close { background: transparent; border: none; color: var(--text-muted); font-size: 1.4rem; cursor: pointer; }
 .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
-.log-item { background: #0f172a; border-radius: 8px; padding: 12px 16px; margin-bottom: 8px; border-left: 4px solid var(--border); font-size: 0.85rem; }
+.grid-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin-bottom: 20px; }
+.log-item { background: #0f172a; border-radius: 8px; padding: 14px 18px; margin-bottom: 10px; border-left: 4px solid var(--border); font-size: 0.86rem; transition: transform 0.15s ease; }
+.log-item:hover { transform: translateY(-1px); }
 .log-item.success { border-left-color: var(--success); }
-.log-item.fail { border-left-color: var(--danger); }
-.log-header { display: flex; justify-content: space-between; margin-bottom: 4px; color: var(--text-muted); font-size: 0.75rem; }
-.log-diag { background: rgba(56, 189, 248, 0.1); border: 1px dashed var(--accent); border-radius: 6px; padding: 8px 12px; margin-top: 8px; font-size: 0.8rem; color: #bae6fd; }
-.toast { position: fixed; bottom: 24px; right: 24px; background: var(--bg-card); border: 1px solid var(--border); padding: 12px 20px; border-radius: 8px; font-size: 0.88rem; box-shadow: 0 10px 25px rgba(0,0,0,0.5); z-index: 200; display: none; animation: slideUp 0.3s ease; }
-@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-@media (max-width: 640px) { .form-row { grid-template-columns: 1fr; } header { padding: 12px 16px; } main { padding: 16px; } .tabs-bar { margin: 12px 16px 0; } }
+.log-item.fail { border-left-color: var(--danger); background: rgba(239, 68, 68, 0.05); }
+.log-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; color: var(--text-muted); font-size: 0.78rem; }
+.log-diag { background: rgba(56, 189, 248, 0.1); border: 1px dashed var(--accent); border-radius: 6px; padding: 10px 14px; margin-top: 10px; font-size: 0.82rem; color: #bae6fd; line-height: 1.5; }
+.log-pill { padding: 6px 14px; border-radius: 20px; font-size: 0.82rem; font-weight: 600; cursor: pointer; background: #1e293b; color: var(--text-muted); border: 1px solid var(--border); transition: all 0.2s; user-select: none; display: inline-flex; align-items: center; gap: 6px; }
+.log-pill:hover { border-color: var(--accent); color: #fff; }
+.log-pill.active { background: rgba(56, 189, 248, 0.2); color: #38bdf8; border-color: #38bdf8; }
+.toast { position: fixed; top: 24px; left: 50%; transform: translateX(-50%); background: #1e293b; border: 1px solid #38bdf8; color: #fff; padding: 12px 26px; border-radius: 12px; font-size: 0.92rem; font-weight: 600; box-shadow: 0 16px 36px rgba(0,0,0,0.65); z-index: 999999; display: none; animation: dropDown 0.3s cubic-bezier(0.16, 1, 0.3, 1); max-width: 90vw; text-align: center; }
+@keyframes dropDown { from { transform: translate(-50%, -25px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
+@keyframes spin { 100% { transform: rotate(360deg); } }
+.spinner-icon { display: inline-block; width: 13px; height: 13px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: middle; margin-right: 5px; }
+.live-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10b981; box-shadow: 0 0 8px #10b981; margin-right: 4px; animation: pulseDot 1.5s infinite; }
+@keyframes pulseDot { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.85); } }
+@media (max-width: 640px) { .form-row { grid-template-columns: 1fr; } header { padding: 12px 16px; } main { padding: 16px; } .tabs-bar { margin: 12px 16px 0; } .grid-cards { grid-template-columns: 1fr; } }
 </style>
+
 </head>
 <body>
 
@@ -259,60 +269,153 @@ input:checked + .slider:before { transform: translateX(20px); }
     </div>
   </div>
 
-  <!-- 4. 消息推送 -->
+  <!-- 4. 消息推送 (对齐 ESP32 经典高颜值网格排列) -->
   <div class="tab-pane" id="pane-push">
-    <div class="card" style="max-width:800px; margin:0 auto;">
-      <div class="section-title" style="margin-bottom:16px;">🔔 多通道消息推送中心</div>
-      <!-- PushPlus -->
-      <div style="padding:14px; background:#0f172a; border-radius:8px; margin-bottom:14px; border:1px solid var(--border);">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-          <span style="font-weight:700;">🟢 PushPlus (微信消息推送)</span>
+    <div class="grid-cards">
+      <!-- 🔕 智能推送过滤与夜间免打扰 (DND) -->
+      <div class="card" style="grid-column: 1 / -1; border-color: rgba(99, 102, 241, 0.4); background: rgba(99, 102, 241, 0.06);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <div style="font-weight:700; font-size:1.05rem; display:flex; align-items:center; gap:8px;">
+            <span>🔕</span> 智能推送分级与夜间免打扰 (DND)
+          </div>
+          <span class="badge" style="background:rgba(99, 102, 241, 0.2); color:#818cf8; font-size:0.75rem;">纯软件智能策略</span>
+        </div>
+        <div class="grid-cards" style="grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:16px; margin-bottom:0;">
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">推送过滤策略</label>
+            <select class="form-control" id="pushPolicyMode">
+              <option value="all">📢 全部推送 (无论成功或失败均推送通知)</option>
+              <option value="fail_only" selected>🛡️ 仅异常告警 (仅打卡失败/熔断/凭据即将过期才推，强烈推荐)</option>
+              <option value="silent">🔕 彻底静默 (仅发送健康周报，日常打卡完全静默)</option>
+            </select>
+            <div style="font-size:0.78rem; color:var(--text-muted); margin-top:6px;">
+              💡 推荐「仅异常告警」，打卡成功不打扰，有异常才发告警。
+            </div>
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+              <label class="form-label" style="margin-bottom:0;">夜间免打扰时段</label>
+              <label class="switch"><input type="checkbox" id="dndEnabled" checked><span class="slider"></span></label>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <select class="form-control" id="dndStart" style="flex:1;">
+                <option value="21">21:00</option>
+                <option value="22">22:00</option>
+                <option value="23" selected>23:00 (推荐)</option>
+                <option value="0">00:00</option>
+              </select>
+              <span style="color:var(--text-muted); font-size:0.85rem;">至次日</span>
+              <select class="form-control" id="dndEnd" style="flex:1;">
+                <option value="6">06:00</option>
+                <option value="7">07:00</option>
+                <option value="8" selected>08:00 (推荐)</option>
+                <option value="9">09:00</option>
+                <option value="10">10:00</option>
+              </select>
+            </div>
+            <div style="font-size:0.78rem; color:var(--text-muted); margin-top:6px;">
+              🌙 免打扰时段内，成功打卡通知静默；失败报警与熔断保护照常放行。
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 1. PushPlus -->
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <div style="font-weight:700; font-size:1rem; display:flex; align-items:center; gap:8px;">
+            <span>🟢</span> PushPlus 微信推送
+          </div>
           <label class="switch"><input type="checkbox" id="pushplusEnabled"><span class="slider"></span></label>
         </div>
-        <input type="text" id="pushplusToken" class="form-control" placeholder="请输入 PushPlus Token">
+        <div class="form-group">
+          <label class="form-label">PushPlus Token</label>
+          <input type="password" class="form-control" id="pushplusToken" placeholder="从 pushplus.plus 获取的 Token">
+        </div>
+        <div style="display:flex; justify-content:flex-end;">
+          <button class="btn btn-secondary btn-sm" onclick="testPush('pushplus')">🚀 发送测试</button>
+        </div>
       </div>
-      <!-- 飞书 -->
-      <div style="padding:14px; background:#0f172a; border-radius:8px; margin-bottom:14px; border:1px solid var(--border);">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-          <span style="font-weight:700;">🐦 飞书机器人 Webhook</span>
+
+      <!-- 2. 飞书 -->
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <div style="font-weight:700; font-size:1rem; display:flex; align-items:center; gap:8px;">
+            <span>🟦</span> 飞书群机器人
+          </div>
           <label class="switch"><input type="checkbox" id="feishuEnabled"><span class="slider"></span></label>
         </div>
-        <input type="text" id="feishuWebhook" class="form-control" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/...">
+        <div class="form-group">
+          <label class="form-label">飞书 Webhook URL</label>
+          <input type="text" class="form-control" id="feishuWebhook" placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/...">
+        </div>
+        <div style="display:flex; justify-content:flex-end;">
+          <button class="btn btn-secondary btn-sm" onclick="testPush('feishu')">🚀 发送测试</button>
+        </div>
       </div>
-      <!-- 钉钉 -->
-      <div style="padding:14px; background:#0f172a; border-radius:8px; margin-bottom:14px; border:1px solid var(--border);">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-          <span style="font-weight:700;">📌 钉钉自定义机器人 Webhook</span>
+
+      <!-- 3. 钉钉 -->
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <div style="font-weight:700; font-size:1rem; display:flex; align-items:center; gap:8px;">
+            <span>🟧</span> 钉钉群机器人
+          </div>
           <label class="switch"><input type="checkbox" id="dingtalkEnabled"><span class="slider"></span></label>
         </div>
-        <input type="text" id="dingtalkWebhook" class="form-control" placeholder="https://oapi.dingtalk.com/robot/send?access_token=..." style="margin-bottom:8px;">
-        <input type="text" id="dingtalkSecret" class="form-control" placeholder="加签 Secret (选填，以 SEC 开头)">
+        <div class="form-group">
+          <label class="form-label">钉钉 Webhook URL</label>
+          <input type="text" class="form-control" id="dingtalkWebhook" placeholder="https://oapi.dingtalk.com/robot/send?access_token=...">
+        </div>
+        <div class="form-group">
+          <label class="form-label">加签 Secret (选填)</label>
+          <input type="text" class="form-control" id="dingtalkSecret" placeholder="以 SEC 开头的加签密钥">
+        </div>
+        <div style="display:flex; justify-content:flex-end;">
+          <button class="btn btn-secondary btn-sm" onclick="testPush('dingtalk')">🚀 发送测试</button>
+        </div>
       </div>
-      <!-- 企业微信 -->
-      <div style="padding:14px; background:#0f172a; border-radius:8px; margin-bottom:14px; border:1px solid var(--border);">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-          <span style="font-weight:700;">💼 企业微信群机器人</span>
+
+      <!-- 4. 企业微信 -->
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <div style="font-weight:700; font-size:1rem; display:flex; align-items:center; gap:8px;">
+            <span>💼</span> 企业微信群机器人 (免实名)
+          </div>
           <label class="switch"><input type="checkbox" id="wechatWorkEnabled"><span class="slider"></span></label>
         </div>
-        <input type="text" id="wechatWorkWebhook" class="form-control" placeholder="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=...">
-      </div>
-      <!-- 免打扰策略 -->
-      <div style="padding:14px; background:#0f172a; border-radius:8px; margin-bottom:14px; border:1px solid var(--border);">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-          <span style="font-weight:700;">🌙 夜间免打扰 (DND) 策略</span>
-          <label class="switch"><input type="checkbox" id="dndEnabled"><span class="slider"></span></label>
+        <div class="form-group">
+          <label class="form-label">企业微信 Webhook 地址</label>
+          <input type="text" class="form-control" id="wechatWorkWebhook" placeholder="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=...">
         </div>
-        <div class="form-row">
-          <input type="number" id="dndStart" class="form-control" min="0" max="23" placeholder="开始时间 (例如: 23)">
-          <input type="number" id="dndEnd" class="form-control" min="0" max="23" placeholder="结束时间 (例如: 8)">
+        <div style="display:flex; justify-content:flex-end;">
+          <button class="btn btn-secondary btn-sm" onclick="testPush('wechat_work')">🚀 发送测试</button>
         </div>
       </div>
-      <div style="display:flex; justify-content:space-between; margin-top:20px;">
-        <button class="btn btn-secondary" onclick="testPushNotification()">🔔 发送测试推送</button>
-        <button class="btn btn-primary" onclick="savePushConfig()">💾 保存推送设置</button>
+
+      <!-- 5. 自定义 Webhook -->
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <div style="font-weight:700; font-size:1rem; display:flex; align-items:center; gap:8px;">
+            <span>🟪</span> 自定义 Webhook (Bark / 私有)
+          </div>
+          <label class="switch"><input type="checkbox" id="customEnabled"><span class="slider"></span></label>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Webhook URL (支持占位符)</label>
+          <input type="text" class="form-control" id="customUrl" placeholder="https://api.day.app/your_key/{title}/{content}">
+        </div>
+        <div style="display:flex; justify-content:flex-end;">
+          <button class="btn btn-secondary btn-sm" onclick="testPush('custom')">🚀 发送测试</button>
+        </div>
       </div>
     </div>
+
+    <!-- 底部保存按钮 -->
+    <div style="text-align:right; margin-top:8px;">
+      <button class="btn btn-primary" onclick="savePushConfig(true)" style="padding:10px 32px; font-size:0.95rem; font-weight:700;">💾 保存所有推送配置</button>
+    </div>
   </div>
+
 
   <!-- 5. 飞牛与存储 -->
   <div class="tab-pane" id="pane-system">
@@ -351,24 +454,36 @@ input:checked + .slider:before { transform: translateX(20px); }
     </div>
   </div>
 
-  <!-- 6. 运行日志 -->
+  <!-- 6. 运行日志 (分类与精准筛选) -->
   <div class="tab-pane" id="pane-logs">
-    <div class="section-header">
-      <div class="section-title">📜 运行审计日志</div>
-      <div style="display:flex; gap:8px;">
-        <select id="logCategoryFilter" class="form-control" style="width:auto; padding:6px 12px;" onchange="loadLogs()">
-          <option value="all">全部日志</option>
-          <option value="task">任务打卡</option>
-          <option value="system">系统安全</option>
+    <div class="section-header" style="flex-wrap:wrap; gap:12px; margin-bottom:16px;">
+      <div class="section-title" style="margin-bottom:0;">📜 运行审计日志</div>
+      <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+        <!-- 按任务筛选 -->
+        <select id="logTaskFilter" class="form-control" style="width:auto; min-width:160px; padding:6px 12px; font-size:0.85rem;" onchange="loadLogs()">
+          <option value="all">🎯 全部任务来源</option>
         </select>
+        <!-- 实时关键词搜索 -->
+        <input type="text" id="logSearchInput" class="form-control" placeholder="🔍 搜索关键字/错误..." style="width:180px; padding:6px 12px; font-size:0.85rem;" oninput="onLogSearchInput()">
         <a href="/api/logs/download" target="_blank" class="btn btn-secondary btn-sm">⬇️ 下载完整日志</a>
         <button class="btn btn-danger btn-sm" onclick="clearLogs()">🗑️ 清空日志</button>
       </div>
     </div>
+
+    <!-- 分类快捷标签 Pill -->
+    <div style="display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap;">
+      <div class="log-pill active" id="pill_all" onclick="selectLogCategory('all')">📋 全部日志 <span id="cnt_all" style="opacity:0.8; font-size:0.75rem;">0</span></div>
+      <div class="log-pill" id="pill_fail" onclick="selectLogCategory('fail')">🔴 异常失败 <span id="cnt_fail" style="opacity:0.8; font-size:0.75rem;">0</span></div>
+      <div class="log-pill" id="pill_success" onclick="selectLogCategory('success')">🟢 成功记录 <span id="cnt_succ" style="opacity:0.8; font-size:0.75rem;">0</span></div>
+      <div class="log-pill" id="pill_ai" onclick="selectLogCategory('ai')">🤖 学术AI提炼 <span id="cnt_ai" style="opacity:0.8; font-size:0.75rem;">0</span></div>
+      <div class="log-pill" id="pill_system" onclick="selectLogCategory('system')">⚙️ 系统安全 <span id="cnt_sys" style="opacity:0.8; font-size:0.75rem;">0</span></div>
+    </div>
+
     <div id="logsContainer">
       <div style="text-align:center; padding:40px; color:var(--text-muted);">正在加载日志...</div>
     </div>
   </div>
+
 </main>
 
 <!-- 任务添加/编辑弹窗 -->
@@ -759,6 +874,28 @@ function formatUptime(seconds) {
   return str;
 }
 
+let liveUptimeSeconds = 0;
+let serverTimeOffsetMs = 0;
+
+function tickSecond() {
+  if (liveUptimeSeconds > 0) {
+    liveUptimeSeconds++;
+    const uptimeEl = document.getElementById('dashUptime');
+    if (uptimeEl) uptimeEl.innerText = formatUptime(liveUptimeSeconds);
+  }
+  const timeEl = document.getElementById('dashTime');
+  if (timeEl) {
+    const now = new Date(Date.now() + serverTimeOffsetMs);
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mm = String(now.getMinutes()).padStart(2, '0');
+    const ss = String(now.getSeconds()).padStart(2, '0');
+    timeEl.innerText = `北京时间: ${y}-${m}-${d} ${hh}:${mm}:${ss}`;
+  }
+}
+
 function refreshStatus() {
   req('/api/status').then(res => {
     if (!res.ok) return;
@@ -774,8 +911,15 @@ function refreshStatus() {
     const diskPct = Math.round(((disk.total_gb - disk.free_gb) / disk.total_gb) * 100);
     document.getElementById('dashDiskBar').style.width = diskPct + '%';
 
-    document.getElementById('dashUptime').innerText = formatUptime(s.uptime_seconds);
-    document.getElementById('dashTime').innerText = '北京时间: ' + s.time;
+    liveUptimeSeconds = s.uptime_seconds || 0;
+    document.getElementById('dashUptime').innerText = formatUptime(liveUptimeSeconds);
+    if (s.time) {
+      const parsedTime = new Date(s.time.replace(/-/g, '/'));
+      if (!isNaN(parsedTime.getTime())) {
+        serverTimeOffsetMs = parsedTime.getTime() - Date.now();
+      }
+      document.getElementById('dashTime').innerText = '北京时间: ' + s.time;
+    }
 
     const crawler = s.crawler || {};
     const pwOk = crawler.playwright_available;
@@ -790,6 +934,7 @@ function refreshStatus() {
     }
   }).catch(e => console.error(e));
 }
+
 
 function loadDashboard() {
   req('/api/tasks/heatmap').then(res => {
@@ -822,8 +967,12 @@ function loadTasks() {
     if (!res.ok) return;
     tasksList = res.tasks || [];
     renderTasks();
+    if (typeof updateLogTaskFilterOptions === 'function') {
+      updateLogTaskFilterOptions(tasksList);
+    }
   });
 }
+
 
 function renderTasks() {
   const c = document.getElementById('tasksContainer');
@@ -869,7 +1018,7 @@ function renderTasks() {
     html += '      <div class="task-name">' + t.name + ' <span class="badge">' + (typeMap[t.type] || t.type) + '</span>' + authBadge + sessionBadge + cookieBadge + pwBadge + circuitBadge + '</div>';
     html += '      <div class="task-meta">';
     html += '        <span>⏱️ ' + schedDesc + (t.jitter_mins ? (' <b style="color:var(--accent);">+🎲' + t.jitter_mins + 'm</b>') : '') + '</span>';
-    html += '        <span>状态: ' + statusBadge + '</span>';
+    html += '        <span>状态: <span id="statusBadge_' + t.id + '">' + statusBadge + '</span></span>';
     html += '        <span>上次运行: ' + (t.last_run || '从未') + '</span>';
     html += '      </div>';
     if (t.last_result) {
@@ -885,7 +1034,7 @@ function renderTasks() {
       html += '      <button class="btn btn-secondary btn-sm" onclick="reloginTaskNow(\'' + t.id + '\')" title="使用配置的账号密码自动登录并刷新 StorageState 会话">🔑 重新登录</button>';
       html += '      <button class="btn btn-secondary btn-sm" onclick="showLoginScreenModal(\'' + t.id + '\', \'' + (t.name || '').replace(/'/g, "\\'") + '\')" title="查看实时登录页截图或扫码">📷 扫码/截屏</button>';
     }
-    html += '      <button class="btn btn-secondary btn-sm" onclick="runTaskNow(\'' + t.id + '\')">⚡ 运行</button>';
+    html += '      <button class="btn btn-secondary btn-sm" id="btnRun_' + t.id + '" onclick="runTaskNow(\'' + t.id + '\', this)">⚡ 运行</button>';
     html += '      <button class="btn btn-secondary btn-sm" onclick="editTask(\'' + t.id + '\')">✏️ 编辑</button>';
     html += '      <button class="btn btn-danger btn-sm" onclick="deleteTask(\'' + t.id + '\')">🗑️</button>';
     html += '    </div>';
@@ -977,13 +1126,51 @@ function resetTaskCircuit(id) {
   });
 }
 
-function runTaskNow(id) {
-  showToast('正在启动执行...');
+function runTaskNow(id, btn) {
+  const targetTask = tasksList.find(x => x.id === id);
+  const taskName = targetTask ? targetTask.name : id;
+
+  const runBtn = btn || document.getElementById('btnRun_' + id);
+  if (runBtn) {
+    if (runBtn.disabled) return;
+    runBtn.disabled = true;
+    runBtn.dataset.oldText = runBtn.innerHTML;
+    runBtn.innerHTML = '<span class="spinner-icon"></span> 运行中...';
+    runBtn.style.opacity = '0.7';
+    runBtn.style.cursor = 'wait';
+  }
+
+  const badgeEl = document.getElementById('statusBadge_' + id);
+  if (badgeEl) {
+    badgeEl.innerHTML = '<span class="badge" style="background:rgba(56,189,248,0.2); color:#38bdf8; border:1px solid #38bdf8;"><span class="spinner-icon"></span> 正在抓取分析...</span>';
+  }
+
+  showToast('🚀 任务【' + taskName + '】已触发，后台开始抓取执行...', 3500);
+
   req('/api/tasks/' + id + '/run', { method: 'POST' }).then(res => {
-    showToast((res.success ? '✅ 执行成功: ' : '❌ 执行失败: ') + res.result, 4000);
+    if (res.success) {
+      showToast('✅ 任务【' + taskName + '】执行完成: ' + res.result, 5000);
+    } else {
+      showToast('❌ 任务【' + taskName + '】执行异常: ' + res.result, 6000);
+    }
+  }).catch(err => {
+    showToast('❌ 任务执行请求失败: ' + err.message, 5000);
+  }).finally(() => {
+    if (runBtn) {
+      runBtn.disabled = false;
+      runBtn.innerHTML = runBtn.dataset.oldText || '⚡ 运行';
+      runBtn.style.opacity = '1';
+      runBtn.style.cursor = 'pointer';
+    }
     loadTasks();
+    refreshStatus();
+    loadDashboard();
+    if (document.getElementById('pane-logs').classList.contains('active')) {
+      loadLogs();
+    }
   });
 }
+
 
 function deleteTask(id) {
   if (!confirm('确定删除此自动化任务吗？')) return;
@@ -1526,11 +1713,22 @@ function saveLlmConfig() {
 }
 
 
-// 推送配置
+// 推送配置 (对齐 ESP32 独立通道控制与即时单项测试)
 function loadPushConfig() {
   req('/api/push/config').then(res => {
     if (!res.ok) return;
     const c = res.config || {};
+
+    const pol = c.policy || {};
+    const modeEl = document.getElementById('pushPolicyMode');
+    if (modeEl) modeEl.value = pol.mode || 'all';
+    const dndEl = document.getElementById('dndEnabled');
+    if (dndEl) dndEl.checked = (pol.dnd_enabled !== false);
+    const startEl = document.getElementById('dndStart');
+    if (startEl) startEl.value = pol.dnd_start !== undefined ? pol.dnd_start : 23;
+    const endEl = document.getElementById('dndEnd');
+    if (endEl) endEl.value = pol.dnd_end !== undefined ? pol.dnd_end : 8;
+
     const pp = c.pushplus || {};
     document.getElementById('pushplusEnabled').checked = !!pp.enabled;
     document.getElementById('pushplusToken').value = pp.token || '';
@@ -1548,20 +1746,19 @@ function loadPushConfig() {
     document.getElementById('wechatWorkEnabled').checked = !!wx.enabled;
     document.getElementById('wechatWorkWebhook').value = wx.webhook || '';
 
-    const pol = c.policy || {};
-    document.getElementById('dndEnabled').checked = !!pol.dnd_enabled;
-    document.getElementById('dndStart').value = pol.dnd_start !== undefined ? pol.dnd_start : 23;
-    document.getElementById('dndEnd').value = pol.dnd_end !== undefined ? pol.dnd_end : 8;
+    const cust = c.custom || {};
+    if (document.getElementById('customEnabled')) document.getElementById('customEnabled').checked = !!cust.enabled;
+    if (document.getElementById('customUrl')) document.getElementById('customUrl').value = cust.url || '';
   });
 }
 
-function savePushConfig() {
+function savePushConfig(showNotice = true) {
   const payload = {
     policy: {
-      mode: 'all',
-      dnd_enabled: document.getElementById('dndEnabled').checked,
-      dnd_start: parseInt(document.getElementById('dndStart').value) || 23,
-      dnd_end: parseInt(document.getElementById('dndEnd').value) || 8
+      mode: document.getElementById('pushPolicyMode') ? document.getElementById('pushPolicyMode').value : 'all',
+      dnd_enabled: document.getElementById('dndEnabled') ? document.getElementById('dndEnabled').checked : true,
+      dnd_start: parseInt(document.getElementById('dndStart') ? document.getElementById('dndStart').value : 23) || 23,
+      dnd_end: parseInt(document.getElementById('dndEnd') ? document.getElementById('dndEnd').value : 8) || 8
     },
     pushplus: {
       enabled: document.getElementById('pushplusEnabled').checked,
@@ -1579,50 +1776,180 @@ function savePushConfig() {
     wechat_work: {
       enabled: document.getElementById('wechatWorkEnabled').checked,
       webhook: document.getElementById('wechatWorkWebhook').value.trim()
+    },
+    custom: {
+      enabled: document.getElementById('customEnabled') ? document.getElementById('customEnabled').checked : false,
+      url: document.getElementById('customUrl') ? document.getElementById('customUrl').value.trim() : ''
     }
   };
-  req('/api/push/config', {
+  return req('/api/push/config', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
   }).then(res => {
-    if (res.ok) showToast('推送配置已保存！');
+    if (res.ok && showNotice) showToast('✅ 推送中心全部配置已保存！');
   });
 }
 
-function testPushNotification() {
-  showToast('正在发送测试推送...');
+function testPush(channel) {
+  // 1. 若对应通道输入框有内容，自动激活开关
+  if (channel === 'pushplus') {
+    const el = document.getElementById('pushplusToken');
+    if (el && el.value.trim()) document.getElementById('pushplusEnabled').checked = true;
+  } else if (channel === 'feishu') {
+    const el = document.getElementById('feishuWebhook');
+    if (el && el.value.trim()) document.getElementById('feishuEnabled').checked = true;
+  } else if (channel === 'dingtalk') {
+    const el = document.getElementById('dingtalkWebhook');
+    if (el && el.value.trim()) document.getElementById('dingtalkEnabled').checked = true;
+  } else if (channel === 'wechat_work') {
+    const el = document.getElementById('wechatWorkWebhook');
+    if (el && el.value.trim()) document.getElementById('wechatWorkEnabled').checked = true;
+  } else if (channel === 'custom') {
+    const el = document.getElementById('customUrl');
+    if (el && el.value.trim()) document.getElementById('customEnabled').checked = true;
+  }
+
+  // 2. 自动静默持久化配置
+  savePushConfig(false);
+
+  // 3. 构建 override 规则触发后端通道测试
+  const overrideCfg = {
+    pushplus: {
+      enabled: true,
+      token: document.getElementById('pushplusToken').value.trim()
+    },
+    feishu: {
+      enabled: true,
+      webhook: document.getElementById('feishuWebhook').value.trim()
+    },
+    dingtalk: {
+      enabled: true,
+      webhook: document.getElementById('dingtalkWebhook').value.trim(),
+      secret: document.getElementById('dingtalkSecret').value.trim()
+    },
+    wechat_work: {
+      enabled: true,
+      webhook: document.getElementById('wechatWorkWebhook').value.trim()
+    },
+    custom: {
+      enabled: true,
+      url: document.getElementById('customUrl') ? document.getElementById('customUrl').value.trim() : ''
+    }
+  };
+
+  const channelNames = {
+    'pushplus': 'PushPlus 微信',
+    'feishu': '飞书机器人',
+    'dingtalk': '钉钉机器人',
+    'wechat_work': '企业微信',
+    'custom': '自定义 Webhook'
+  };
+  const cName = channelNames[channel] || channel;
+
+  showToast('正在向 [' + cName + '] 发送测试消息...', 3000);
   req('/api/push/test', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ channel: 'all' })
+    body: JSON.stringify({ channel: channel, override_cfg: overrideCfg })
   }).then(res => {
-    if (res.ok) {
-      alert('测试结果已返回：\n' + JSON.stringify(res.results, null, 2));
+    if (res.ok && res.results && res.results[channel]) {
+      const r = res.results[channel];
+      if (r.ok) {
+        showToast('🎉 [' + cName + '] 测试推送发送成功！请在目标设备查收。', 5000);
+      } else {
+        showToast('❌ [' + cName + '] 发送失败: ' + (r.error || r.msg || JSON.stringify(r)), 6000);
+      }
+    } else {
+      showToast('❌ 未收到 [' + cName + '] 的有效响应', 4000);
     }
+  }).catch(err => {
+    showToast('❌ 测试请求网络错误: ' + err.message, 5000);
   });
 }
 
-// 运行日志
+// 运行日志分类与筛选
+let currentLogCategory = 'all';
+let logSearchTimer = null;
+
+function onLogSearchInput() {
+  clearTimeout(logSearchTimer);
+  logSearchTimer = setTimeout(loadLogs, 250);
+}
+
+function selectLogCategory(cat) {
+  currentLogCategory = cat;
+  document.querySelectorAll('.log-pill').forEach(el => el.classList.remove('active'));
+  const activeEl = document.getElementById('pill_' + cat);
+  if (activeEl) activeEl.classList.add('active');
+  loadLogs();
+}
+
+function updateLogTaskFilterOptions(tasks) {
+  const sel = document.getElementById('logTaskFilter');
+  if (!sel) return;
+  const currentVal = sel.value;
+  let html = '<option value="all">🎯 全部任务来源</option>';
+  html += '<option value="SYSTEM">⚙️ 系统内部安全 (SYSTEM)</option>';
+  (tasks || []).forEach(t => {
+    html += `<option value="${t.id}">${t.name}</option>`;
+  });
+  sel.innerHTML = html;
+  sel.value = currentVal || 'all';
+}
+
 function loadLogs() {
-  const cat = document.getElementById('logCategoryFilter').value;
-  req('/api/logs?category=' + cat).then(res => {
+  const taskId = document.getElementById('logTaskFilter') ? document.getElementById('logTaskFilter').value : 'all';
+  const q = document.getElementById('logSearchInput') ? document.getElementById('logSearchInput').value.trim() : '';
+
+  let queryUrl = `/api/logs?category=${currentLogCategory}&task_id=${taskId}&limit=150`;
+  if (q) queryUrl += `&q=${encodeURIComponent(q)}`;
+
+  req(queryUrl).then(res => {
     if (!res.ok) return;
     const logs = res.logs || [];
+    const counts = res.counts || {};
+
+    // 更新各分类数量
+    if (document.getElementById('cnt_all')) document.getElementById('cnt_all').innerText = counts.all || 0;
+    if (document.getElementById('cnt_fail')) document.getElementById('cnt_fail').innerText = counts.fail || 0;
+    if (document.getElementById('cnt_succ')) document.getElementById('cnt_succ').innerText = counts.success || 0;
+    if (document.getElementById('cnt_ai')) document.getElementById('cnt_ai').innerText = counts.ai || 0;
+    if (document.getElementById('cnt_sys')) document.getElementById('cnt_sys').innerText = counts.system || 0;
+
     const container = document.getElementById('logsContainer');
     if (logs.length === 0) {
-      container.innerHTML = '<div style="text-align:center; padding:40px; color:var(--text-muted);">暂无运行日志</div>';
+      container.innerHTML = '<div style="text-align:center; padding:40px; color:var(--text-muted);">暂无匹配的运行审计日志</div>';
       return;
     }
+
     let html = '';
     logs.forEach(l => {
       const isSucc = l.status === 'success';
+      const isSystem = l.category === 'system' || !l.task_id;
+      const isAI = !!l.ai_diag || (l.task_name && l.task_name.includes('AI'));
+
+      let typeBadge = '';
+      if (isSystem) {
+        typeBadge = '<span class="badge" style="background:#334155; color:#94a3b8; font-size:0.75rem;">⚙️ 系统事件</span>';
+      } else if (isAI) {
+        typeBadge = '<span class="badge" style="background:rgba(56,189,248,0.15); color:#38bdf8; font-size:0.75rem;">🤖 学术AI提炼</span>';
+      } else {
+        typeBadge = '<span class="badge" style="background:rgba(16,185,129,0.15); color:#10b981; font-size:0.75rem;">⚡ 自动打卡</span>';
+      }
+
+      const latencyBadge = l.latency_ms ? `<span style="color:var(--text-muted); font-size:0.75rem; margin-left:8px;">⏱️ ${l.latency_ms}ms</span>` : '';
+
       html += '<div class="log-item ' + (isSucc ? 'success' : 'fail') + '">';
       html += '  <div class="log-header">';
-      html += '    <span>[' + l.time + '] ' + (l.task_name || l.task_id || 'SYSTEM') + '</span>';
+      html += '    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">';
+      html += '      <span>[' + l.time + ']</span>';
+      html += '      <b style="color:#fff;">' + (l.task_name || l.task_id || '系统内部') + '</b>';
+      html +=        typeBadge + latencyBadge;
+      html += '    </div>';
       html += '    <span>' + (isSucc ? '<b style="color:var(--success);">SUCCESS</b>' : '<b style="color:var(--danger);">FAIL</b>') + '</span>';
       html += '  </div>';
-      html += '  <div>' + l.message + '</div>';
+      html += '  <div style="word-break:break-all; line-height:1.6; color:#e2e8f0; margin-top:6px;">' + l.message + '</div>';
       if (l.ai_diag) {
         html += '  <div class="log-diag">🤖 <b>AI 诊断建议:</b> ' + l.ai_diag + '</div>';
       }
@@ -1631,6 +1958,7 @@ function loadLogs() {
     container.innerHTML = html;
   });
 }
+
 
 function clearLogs() {
   if (!confirm('确定清空所有审计日志吗？')) return;
@@ -1716,7 +2044,8 @@ window.addEventListener('DOMContentLoaded', () => {
   }).catch(() => {
     showLoginGateway();
   });
-  setInterval(refreshStatus, 10000);
+  setInterval(tickSecond, 1000);
+  setInterval(refreshStatus, 3000);
 });
 </script>
 </body>

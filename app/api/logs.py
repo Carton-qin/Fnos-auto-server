@@ -10,27 +10,55 @@ router = APIRouter(prefix="/api", tags=["Logs"])
 
 @router.get("/logs")
 async def list_logs(
-    category: str = Query("all", pattern="^(all|task|system)$"),
+    category: str = Query("all"),
+    status: Optional[str] = None,
     task_id: Optional[str] = None,
-    limit: int = Query(100, ge=1, le=500),
+    q: Optional[str] = None,
+    limit: int = Query(150, ge=1, le=500),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
     auth: bool = Depends(get_current_auth)
 ):
     stmt = select(TaskLog)
-    if category != "all":
+
+    # 分类筛选
+    if category == "fail":
+        stmt = stmt.where(TaskLog.status == "fail")
+    elif category == "success":
+        stmt = stmt.where(TaskLog.status == "success")
+    elif category == "ai":
+        stmt = stmt.where((TaskLog.ai_diag.is_not(None)) | (TaskLog.task_name.like("%AI%")))
+    elif category in ["task", "system"]:
         stmt = stmt.where(TaskLog.category == category)
-    if task_id:
-        stmt = stmt.where(TaskLog.task_id == task_id)
+
+    if status and status != "all":
+        stmt = stmt.where(TaskLog.status == status)
+
+    if task_id and task_id != "all":
+        if task_id == "SYSTEM":
+            stmt = stmt.where(TaskLog.category == "system")
+        else:
+            stmt = stmt.where(TaskLog.task_id == task_id)
+
+    if q and q.strip():
+        search_kw = f"%{q.strip()}%"
+        stmt = stmt.where(
+            (TaskLog.message.like(search_kw)) |
+            (TaskLog.task_name.like(search_kw)) |
+            (TaskLog.ai_diag.like(search_kw))
+        )
 
     stmt = stmt.order_by(TaskLog.id.desc()).offset(offset).limit(limit)
     result = await db.execute(stmt)
     logs = result.scalars().all()
 
-    # 统计数量
+    # 各维度统计数量
     count_all = (await db.execute(select(func.count()).select_from(TaskLog))).scalar() or 0
     count_task = (await db.execute(select(func.count()).select_from(TaskLog).where(TaskLog.category == "task"))).scalar() or 0
     count_sys = (await db.execute(select(func.count()).select_from(TaskLog).where(TaskLog.category == "system"))).scalar() or 0
+    count_fail = (await db.execute(select(func.count()).select_from(TaskLog).where(TaskLog.status == "fail"))).scalar() or 0
+    count_succ = (await db.execute(select(func.count()).select_from(TaskLog).where(TaskLog.status == "success"))).scalar() or 0
+    count_ai = (await db.execute(select(func.count()).select_from(TaskLog).where((TaskLog.ai_diag.is_not(None)) | (TaskLog.task_name.like("%AI%"))))).scalar() or 0
 
     return {
         "ok": True,
@@ -51,9 +79,13 @@ async def list_logs(
         "counts": {
             "all": count_all,
             "task": count_task,
-            "system": count_sys
+            "system": count_sys,
+            "fail": count_fail,
+            "success": count_succ,
+            "ai": count_ai
         }
     }
+
 
 @router.delete("/logs")
 async def clear_logs(db: AsyncSession = Depends(get_db), auth: bool = Depends(get_current_auth)):
