@@ -49,14 +49,14 @@ jobs:
         run: |
           docker pull ${{ env.IMAGE_NAME }}:latest
           docker tag ${{ env.IMAGE_NAME }}:latest fnos-server:latest
-          docker save fnos-server:latest | gzip > fnos-server-latest.tar.gz
-          ls -lh fnos-server-latest.tar.gz
+          docker save fnos-server:latest -o fnos-server-latest.tar
+          ls -lh fnos-server-latest.tar
 
       - name: Upload Docker image artifact
         uses: actions/upload-artifact@v4
         with:
           name: fnos-server-docker-image
-          path: fnos-server-latest.tar.gz
+          path: fnos-server-latest.tar
           retention-days: 30
 
       - name: Release Docker tarball
@@ -68,16 +68,16 @@ jobs:
           body: |
             ### 飞牛 NAS (fnOS) 离线镜像发布
             
-            **使用方法（无需在 NAS 上现场构建，3 秒导入）：**
-            1. 下载下方 Assets 中的 `fnos-server-latest.tar.gz`；
+            **使用方法（无需解压，直接导入）：**
+            1. 下载下方 Assets 中的 `fnos-server-latest.tar`；
             2. 打开飞牛 NAS 管理面板 -> 进入 **「Docker」** -> **「本地镜像」**；
-            3. 点击右上角 **「导入镜像」**，选择该文件上传；
+            3. 点击右上角 **「导入镜像」**，选择 `fnos-server-latest.tar`（文件不再置灰，直接选中）；
             4. 导入成功后，在 Compose 中使用 `image: fnos-server:latest` 直接启动即可！
             
             也可直接使用在线镜像拉取：
             ```yaml
             image: ${{ env.IMAGE_NAME }}:latest
             ```
-          files: fnos-server-latest.tar.gz
+          files: fnos-server-latest.tar
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
