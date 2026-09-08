@@ -554,8 +554,8 @@ input:checked + .slider:before { transform: translateX(20px); }
     </div>
     <div class="form-row" id="cronRow">
       <div class="form-group">
-        <label class="form-label">Cron 表达式</label>
-        <input type="text" id="taskCron" class="form-control" placeholder="分 时 日 月 周 (例如: 10 8 * * *)" value="10 8 * * *">
+        <label class="form-label">Cron 表达式 (基于北京时间 UTC+8)</label>
+        <input type="text" id="taskCron" class="form-control" placeholder="分 时 日 月 周 (例如: 10 8 * * * 表示每天 08:10)" value="10 8 * * *">
       </div>
       <div class="form-group">
         <label class="form-label">防封随机延迟 (分钟)</label>
@@ -564,11 +564,11 @@ input:checked + .slider:before { transform: translateX(20px); }
     </div>
     <div class="form-row" id="windowRow" style="display:none;">
       <div class="form-group">
-        <label class="form-label">窗口起始时间 (HH:MM)</label>
+        <label class="form-label">窗口起始时间 (北京时间 HH:MM)</label>
         <input type="text" id="taskWindowStart" class="form-control" placeholder="08:00" value="08:00">
       </div>
       <div class="form-group">
-        <label class="form-label">窗口结束时间 (HH:MM)</label>
+        <label class="form-label">窗口结束时间 (北京时间 HH:MM)</label>
         <input type="text" id="taskWindowEnd" class="form-control" placeholder="09:00" value="09:00">
       </div>
     </div>
@@ -1065,6 +1065,28 @@ function loadTasks() {
 }
 
 
+function formatCronText(cron) {
+  if (!cron) return '';
+  const parts = cron.trim().split(/\s+/);
+  if (parts.length === 5) {
+    const [min, hr, dom, mon, dow] = parts;
+    if (dom === '*' && mon === '*' && dow === '*') {
+      if (!min.includes('/') && !hr.includes('/') && !min.includes(',') && !hr.includes(',')) {
+        const hStr = hr.padStart(2, '0');
+        const mStr = min.padStart(2, '0');
+        return ` (每天 ${hStr}:${mStr} 北京时间)`;
+      }
+      if (hr.startsWith('*/')) {
+        return ` (每 ${hr.replace('*/', '')} 小时 北京时间)`;
+      }
+      if (min.startsWith('*/')) {
+        return ` (每 ${min.replace('*/', '')} 分钟)`;
+      }
+    }
+  }
+  return ' (北京时间)';
+}
+
 function renderTasks() {
   const c = document.getElementById('tasksContainer');
   if (tasksList.length === 0) {
@@ -1074,7 +1096,8 @@ function renderTasks() {
   let html = '';
   tasksList.forEach(t => {
     const typeMap = { 'checkin': '自动打卡', 'ai_digest': '学术 AI 订阅', 'uptime': '服务哨兵', 'custom_http': 'HTTP 请求' };
-    const schedDesc = t.schedule_type === 'cron' ? ('Cron: ' + t.cron_expr) : ('窗口: ' + t.window_start + '~' + t.window_end + (t.today_target_time ? (' (今日目标 ' + t.today_target_time + ')') : ''));
+    const cronHint = formatCronText(t.cron_expr);
+    const schedDesc = t.schedule_type === 'cron' ? ('Cron: ' + t.cron_expr + cronHint) : ('窗口: ' + t.window_start + '~' + t.window_end + ' (北京时间)' + (t.today_target_time ? (' [今日目标 ' + t.today_target_time + ']') : ''));
     const statusBadge = t.last_status === 'success' ? '<span style="color:var(--success); font-weight:600;">✅ 成功</span>' : (t.last_status === 'fail' ? '<span style="color:var(--danger); font-weight:600;">❌ 失败</span>' : '⚪ 未运行');
 
     let authBadge = '';
